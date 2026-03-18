@@ -1,0 +1,9 @@
+bin/
+*.db
+*.db-shm
+*.db-wal
+/tmp/
+.env
+*.pem
+*.key
+vendor/
