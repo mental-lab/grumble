@@ -19,6 +19,9 @@ func main() {
 		grpcAddr string
 		httpAddr string
 		dbPath   string
+		tlsCert  string
+		tlsKey   string
+		tlsCA    string
 	)
 
 	cmd := &cobra.Command{
@@ -42,9 +45,17 @@ func main() {
 			g, ctx := errgroup.WithContext(ctx)
 
 			// gRPC server — agents connect here
+			var tlsCfg *server.TLSConfig
+			if tlsCert != "" {
+				tlsCfg = &server.TLSConfig{
+					CertFile: tlsCert,
+					KeyFile:  tlsKey,
+					CAFile:   tlsCA,
+				}
+			}
 			g.Go(func() error {
 				log.Info("starting gRPC server", zap.String("addr", grpcAddr))
-				return srv.Run(grpcAddr)
+				return srv.Run(grpcAddr, tlsCfg)
 			})
 
 			// HTTP API — Grafana queries here
@@ -65,6 +76,9 @@ func main() {
 	cmd.Flags().StringVar(&grpcAddr, "grpc-addr", ":9090", "gRPC listen address (agents connect here)")
 	cmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP API listen address (Grafana connects here)")
 	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
+	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Server TLS certificate file (enables mTLS)")
+	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Server TLS key file")
+	cmd.Flags().StringVar(&tlsCA, "tls-ca", "", "CA certificate to verify agent client certs")
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)

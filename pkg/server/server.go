@@ -1,13 +1,16 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"net"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	proto "github.com/mental-lab/grumble/pkg/proto"
+	"github.com/mental-lab/grumble/pkg/tlsconfig"
 )
 
 // Server is the central aggregation service. It receives scan results
@@ -22,13 +25,33 @@ func New(store *Store, log *zap.Logger) *Server {
 	return &Server{store: store, log: log}
 }
 
-func (s *Server) Run(addr string) error {
+// TLSConfig holds optional mTLS configuration for the server.
+type TLSConfig struct {
+	CertFile string
+	KeyFile  string
+	CAFile   string
+}
+
+func (s *Server) Run(addr string, tls *TLSConfig) error {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
+	var serverOpts []grpc.ServerOption
+	if tls != nil && tls.CertFile != "" {
+		creds, err := tlsconfig.ServerCredentials(tls.CertFile, tls.KeyFile, tls.CAFile)
+		if err != nil {
+			return fmt.Errorf("building mTLS credentials: %w", err)
+		}
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+		s.log.Info("mTLS enabled on server")
+	} else {
+		serverOpts = append(serverOpts, grpc.Creds(insecure.NewCredentials()))
+		s.log.Warn("mTLS not configured — running insecure (not recommended for production)")
+	}
+
+	grpcServer := grpc.NewServer(serverOpts...)
 	proto.RegisterGrumbleServerServer(grpcServer, s)
 
 	s.log.Info("grumble server listening", zap.String("addr", addr))

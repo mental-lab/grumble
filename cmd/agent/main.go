@@ -22,6 +22,9 @@ func main() {
 		agentID    string
 		grypeDBDir string
 		kubeconfig string
+		tlsCert    string
+		tlsKey     string
+		tlsCA      string
 	)
 
 	cmd := &cobra.Command{
@@ -49,10 +52,13 @@ func main() {
 			watcher := agent.NewWatcher(client, log)
 
 			a := agent.New(agent.Config{
-				AgentID:    agentID,
-				ClusterID:  clusterID,
-				ServerAddr: serverAddr,
-				GrypeDBDir: grypeDBDir,
+				AgentID:     agentID,
+				ClusterID:   clusterID,
+				ServerAddr:  serverAddr,
+				GrypeDBDir:  grypeDBDir,
+				TLSCertFile: tlsCert,
+				TLSKeyFile:  tlsKey,
+				TLSCAFile:   tlsCA,
 			}, watcher, scanner, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -71,6 +77,9 @@ func main() {
 	cmd.Flags().StringVar(&agentID, "agent-id", "", "Unique agent identifier")
 	cmd.Flags().StringVar(&grypeDBDir, "grype-db-dir", "/tmp/grype-db", "Directory for Grype vulnerability DB")
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig (defaults to in-cluster config)")
+	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Agent TLS certificate file (enables mTLS)")
+	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Agent TLS key file")
+	cmd.Flags().StringVar(&tlsCA, "tls-ca", "", "CA certificate to verify server cert")
 	cmd.MarkFlagRequired("cluster-id")
 
 	if err := cmd.Execute(); err != nil {
