@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -27,6 +28,9 @@ func NewStore(path string) (*Store, error) {
 }
 
 func (s *Store) migrate() error {
+	// Drop views so they are always recreated with the latest definition.
+	s.db.Exec(`DROP VIEW IF EXISTS image_catalog`)
+
 	_, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS scan_results (
 			id            TEXT PRIMARY KEY,
@@ -81,9 +85,13 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_pod_cluster  ON pod_inventory(cluster_id);
 		CREATE INDEX IF NOT EXISTS idx_pod_image    ON pod_inventory(image);
 
-		-- Image catalog: one row per unique image+cluster combination,
-		-- aggregated from pod_inventory joined with latest scan results.
+		-- Image catalog: one row per unique image+cluster, joined with
+		-- the latest scan result for that image.
 		CREATE VIEW IF NOT EXISTS image_catalog AS
+		WITH latest_scans AS (
+			SELECT image, cluster_id, MAX(scanned_at) AS max_at
+			FROM scan_results GROUP BY image, cluster_id
+		)
 		SELECT
 			p.image,
 			p.image_digest,
@@ -102,8 +110,10 @@ func (s *Store) migrate() error {
 				THEN 'scanned' ELSE 'pending' END         AS scan_status,
 			s.scanned_at
 		FROM pod_inventory p
+		LEFT JOIN latest_scans ls
+			ON ls.image = p.image AND ls.cluster_id = p.cluster_id
 		LEFT JOIN scan_results s
-			ON s.image = p.image AND s.cluster_id = p.cluster_id
+			ON s.image = ls.image AND s.cluster_id = ls.cluster_id AND s.scanned_at = ls.max_at
 		GROUP BY p.image, p.cluster_id;
 	`)
 	return err
@@ -189,8 +199,9 @@ func (s *Store) UpdateHeartbeat(agentID string, ts int64) {
 func countBySeverity(vulns []*proto.Vulnerability) map[string]int {
 	counts := map[string]int{"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
 	for _, v := range vulns {
-		if _, ok := counts[v.Severity]; ok {
-			counts[v.Severity]++
+		key := strings.ToUpper(v.Severity)
+		if _, ok := counts[key]; ok {
+			counts[key]++
 		}
 	}
 	return counts

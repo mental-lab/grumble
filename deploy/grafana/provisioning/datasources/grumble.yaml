@@ -1,6 +1,7 @@
 apiVersion: 1
 datasources:
   - name: Grumble
+    uid: grumble-api
     type: marcusolsson-json-datasource
     access: proxy
     url: http://grumble-server:8080
