@@ -63,6 +63,32 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_scan_cluster ON scan_results(cluster_id);
 		CREATE INDEX IF NOT EXISTS idx_scan_image   ON scan_results(image);
 		CREATE INDEX IF NOT EXISTS idx_pod_cluster  ON pod_inventory(cluster_id);
+		CREATE INDEX IF NOT EXISTS idx_pod_image    ON pod_inventory(image);
+
+		-- Image catalog: one row per unique image+cluster combination,
+		-- aggregated from pod_inventory joined with latest scan results.
+		CREATE VIEW IF NOT EXISTS image_catalog AS
+		SELECT
+			p.image,
+			p.image_digest,
+			p.cluster_id,
+			COUNT(DISTINCT p.namespace)                   AS namespace_count,
+			COUNT(DISTINCT p.pod_name)                    AS pod_count,
+			GROUP_CONCAT(DISTINCT p.namespace)            AS namespaces,
+			MIN(p.updated_at)                             AS first_seen,
+			MAX(p.updated_at)                             AS last_seen,
+			COALESCE(s.critical, 0)                       AS critical,
+			COALESCE(s.high, 0)                           AS high,
+			COALESCE(s.medium, 0)                         AS medium,
+			COALESCE(s.low, 0)                            AS low,
+			COALESCE(s.vuln_count, 0)                     AS total_vulns,
+			CASE WHEN s.scanned_at IS NOT NULL
+				THEN 'scanned' ELSE 'pending' END         AS scan_status,
+			s.scanned_at
+		FROM pod_inventory p
+		LEFT JOIN scan_results s
+			ON s.image = p.image AND s.cluster_id = p.cluster_id
+		GROUP BY p.image, p.cluster_id;
 	`)
 	return err
 }
