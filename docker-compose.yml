@@ -1,0 +1,35 @@
+services:
+
+  grumble-server:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.server
+    ports:
+      - "9090:9090"   # gRPC — agents connect here
+      - "8080:8080"   # HTTP API — Grafana connects here
+    volumes:
+      - grumble-data:/data
+    command:
+      - --grpc-addr=:9090
+      - --http-addr=:8080
+      - --db=/data/grumble.db
+      - --dev   # disables OIDC auth for local testing
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/grumble.json
+    volumes:
+      - ./deploy/grafana/dashboard.json:/var/lib/grafana/dashboards/grumble.json
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - grumble-server
+    restart: unless-stopped
+
+volumes:
+  grumble-data:

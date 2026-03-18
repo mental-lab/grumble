@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#4a90d9"/>
+      <stop offset="100%" stop-color="#1a3a5c"/>
+    </radialGradient>
+    <radialGradient id="faceGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#5ba3e8"/>
+      <stop offset="100%" stop-color="#2c5f8a"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0a1929" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Body / cloud shape -->
+  <g filter="url(#shadow)">
+    <ellipse cx="100" cy="115" rx="72" ry="55" fill="url(#bodyGrad)"/>
+    <circle cx="68"  cy="95"  r="38" fill="url(#bodyGrad)"/>
+    <circle cx="132" cy="95"  r="38" fill="url(#bodyGrad)"/>
+    <circle cx="100" cy="78"  r="44" fill="url(#faceGrad)"/>
+  </g>
+
+  <!-- Angry brow — left -->
+  <line x1="72" y1="68" x2="88" y2="74" stroke="#0d2137" stroke-width="5" stroke-linecap="round"/>
+  <!-- Angry brow — right -->
+  <line x1="112" y1="74" x2="128" y2="68" stroke="#0d2137" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Eyes -->
+  <ellipse cx="84"  cy="83" rx="7" ry="7" fill="#0d2137"/>
+  <ellipse cx="116" cy="83" rx="7" ry="7" fill="#0d2137"/>
+  <!-- Eye shine -->
+  <circle cx="86" cy="81" r="2.5" fill="white" opacity="0.7"/>
+  <circle cx="118" cy="81" r="2.5" fill="white" opacity="0.7"/>
+
+  <!-- Grumpy mouth -->
+  <path d="M 84 100 Q 100 94 116 100" stroke="#0d2137" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- CVE badge — top right -->
+  <circle cx="148" cy="42" r="22" fill="#e05252" filter="url(#shadow)"/>
+  <text x="148" y="39" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="9" fill="white">CVE</text>
+  <text x="148" y="51" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="9" fill="white">!!</text>
+
+  <!-- Kubernetes wheel — bottom, subtle -->
+  <g transform="translate(100,158) scale(0.55)" opacity="0.55">
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#7ec8e3" stroke-width="3"/>
+    <circle cx="0" cy="0" r="7"  fill="#7ec8e3"/>
+    <!-- spokes -->
+    <line x1="0" y1="-22" x2="0" y2="-7"   stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="0" y1="7"   x2="0" y2="22"   stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="-22" y1="0" x2="-7" y2="0"   stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="7"   y1="0" x2="22" y2="0"   stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="-15.6" y1="-15.6" x2="-5" y2="-5" stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="5"     y1="5"     x2="15.6" y2="15.6" stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="15.6"  y1="-15.6" x2="5" y2="-5"   stroke="#7ec8e3" stroke-width="2.5"/>
+    <line x1="-5"    y1="5"     x2="-15.6" y2="15.6" stroke="#7ec8e3" stroke-width="2.5"/>
+  </g>
+</svg>
