@@ -88,16 +88,6 @@ Available endpoints:
 - `GET /clusters` — per-cluster summary
 - `GET /inventory?cluster=<id>` — pod inventory for a cluster
 
-## Roadmap
-
-- [ ] mTLS between agent and server
-- [ ] Helm chart for server
-- [ ] Pre-built Grafana dashboard JSON
-- [ ] Postgres backend for production
-- [ ] Namespace ignore rules via server config push
-- [ ] SBOM export
-- [ ] GitHub Actions / GitLab CI image publishing
-
 ## Name
 
 Grumble pays tribute to [Grype](https://github.com/anchore/grype). It grumbles loudly when it finds vulnerabilities in your clusters.

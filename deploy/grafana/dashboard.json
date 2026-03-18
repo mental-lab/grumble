@@ -200,6 +200,32 @@
       ]
     },
     {
+      "id": 9,
+      "title": "Package / Dependency Search — \"Which images use X?\"",
+      "description": "Search by package name (e.g. log4j, openssl, requests). Shows every image+cluster running that package and how many pods are affected.",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 9 },
+      "options": {
+        "sortBy": [{ "displayName": "pod_count", "desc": true }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/packages?name=${package_search}",
+          "fields": [
+            { "name": "name",            "type": "string" },
+            { "name": "version",         "type": "string" },
+            { "name": "type",            "type": "string" },
+            { "name": "image",           "type": "string" },
+            { "name": "cluster_id",      "type": "string" },
+            { "name": "pod_count",       "type": "number" },
+            { "name": "namespace_count", "type": "number" },
+            { "name": "license",         "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
       "id": 5,
       "title": "Per-Cluster Summary",
       "type": "bargauge",

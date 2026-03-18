@@ -87,9 +87,34 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 		})
 	}
 
+	// Extract the full package list from the SBOM
+	seen := map[string]bool{}
+	for _, p := range packages {
+		key := p.Name + "@" + p.Version
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		loc := ""
+		if p.Locations.ToSlice() != nil && len(p.Locations.ToSlice()) > 0 {
+			loc = p.Locations.ToSlice()[0].RealPath
+		}
+
+		result.Packages = append(result.Packages, &proto.Package{
+			Name:     p.Name,
+			Version:  p.Version,
+			Type:     string(p.Type),
+			Language: string(p.Language),
+			Location: loc,
+			Purl:     p.PURL,
+		})
+	}
+
 	s.log.Info("scan complete",
 		zap.String("image", image),
-		zap.Int("vulns", len(result.Vulns)))
+		zap.Int("vulns", len(result.Vulns)),
+		zap.Int("packages", len(result.Packages)))
 
 	return result, nil
 }
