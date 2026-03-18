@@ -5,6 +5,7 @@ go 1.22.0
 require (
 	github.com/anchore/grype v0.79.0
 	github.com/anchore/syft v1.7.0
+	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/mattn/go-sqlite3 v1.14.37
 	github.com/spf13/cobra v1.8.0
 	go.uber.org/zap v1.27.0
@@ -93,6 +94,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-git/go-git/v5 v5.12.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect

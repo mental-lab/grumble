@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/mental-lab/grumble/pkg/auth"
 	proto "github.com/mental-lab/grumble/pkg/proto"
 	"github.com/mental-lab/grumble/pkg/tlsconfig"
 )
@@ -46,6 +47,10 @@ type Config struct {
 	TLSCertFile string // agent client cert
 	TLSKeyFile  string // agent client key
 	TLSCAFile   string // CA cert to verify server
+
+	// OIDC — path to the ServiceAccount token (leave empty for default in-cluster path)
+	// This is the preferred authentication method.
+	SATokenPath string
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
@@ -87,17 +92,23 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) connect(ctx context.Context) error {
 	dialOpts := []grpc.DialOption{grpc.WithBlock()}
 
+	// Transport security (mTLS preferred; falls back to insecure for dev)
 	if a.cfg.TLSCertFile != "" && a.cfg.TLSKeyFile != "" && a.cfg.TLSCAFile != "" {
 		creds, err := tlsconfig.AgentCredentials(a.cfg.TLSCertFile, a.cfg.TLSKeyFile, a.cfg.TLSCAFile)
 		if err != nil {
 			return fmt.Errorf("building mTLS credentials: %w", err)
 		}
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
-		a.log.Info("mTLS enabled", zap.String("server", a.cfg.ServerAddr))
+		a.log.Info("mTLS transport enabled")
 	} else {
-		a.log.Warn("mTLS not configured — using insecure connection (not recommended for production)")
+		a.log.Warn("mTLS not configured — using insecure transport (not recommended for production)")
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
+
+	// Authentication via Kubernetes ServiceAccount OIDC token (preferred)
+	tokenSource := auth.NewTokenSource(a.cfg.SATokenPath)
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(tokenSource))
+	a.log.Info("OIDC ServiceAccount token auth enabled")
 
 	conn, err := grpc.DialContext(ctx, a.cfg.ServerAddr, dialOpts...)
 	if err != nil {
@@ -105,8 +116,14 @@ func (a *Agent) connect(ctx context.Context) error {
 	}
 	defer conn.Close()
 
+	// Attach cluster-id metadata so the server can select the right OIDC verifier
+	connCtx, err := auth.OutgoingContext(ctx, a.cfg.ClusterID)
+	if err != nil {
+		return fmt.Errorf("building outgoing context: %w", err)
+	}
+
 	client := proto.NewGrumbleServerClient(conn)
-	stream, err := client.Connect(ctx)
+	stream, err := client.Connect(connCtx)
 	if err != nil {
 		return fmt.Errorf("opening stream: %w", err)
 	}
