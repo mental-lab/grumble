@@ -24,6 +24,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/hotspots", a.hotspots)
 	mux.HandleFunc("/clusters", a.clusters)
 	mux.HandleFunc("/inventory", a.inventory)
+	mux.HandleFunc("/images", a.images)
 	return mux
 }
 
@@ -108,6 +109,76 @@ func (a *API) clusters(w http.ResponseWriter, r *http.Request) {
 		results = append(results, c)
 	}
 
+	json.NewEncoder(w).Encode(results)
+}
+
+// images returns the full image catalog — every unique image running across
+// all clusters, with pod/namespace counts and scan status.
+// Optional query params: ?cluster=<id>, ?scan_status=pending|scanned
+func (a *API) images(w http.ResponseWriter, r *http.Request) {
+	cluster := r.URL.Query().Get("cluster")
+	scanStatus := r.URL.Query().Get("scan_status")
+
+	query := `
+		SELECT
+			image, image_digest, cluster_id,
+			namespace_count, pod_count, namespaces,
+			first_seen, last_seen,
+			critical, high, medium, low, total_vulns,
+			scan_status, scanned_at
+		FROM image_catalog
+		WHERE 1=1`
+	args := []interface{}{}
+
+	if cluster != "" {
+		query += ` AND cluster_id = ?`
+		args = append(args, cluster)
+	}
+	if scanStatus != "" {
+		query += ` AND scan_status = ?`
+		args = append(args, scanStatus)
+	}
+	query += ` ORDER BY total_vulns DESC, pod_count DESC`
+
+	rows, err := a.store.db.Query(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type ImageEntry struct {
+		Image          string `json:"image"`
+		ImageDigest    string `json:"image_digest"`
+		ClusterID      string `json:"cluster_id"`
+		NamespaceCount int    `json:"namespace_count"`
+		PodCount       int    `json:"pod_count"`
+		Namespaces     string `json:"namespaces"`
+		FirstSeen      string `json:"first_seen"`
+		LastSeen       string `json:"last_seen"`
+		Critical       int    `json:"critical"`
+		High           int    `json:"high"`
+		Medium         int    `json:"medium"`
+		Low            int    `json:"low"`
+		TotalVulns     int    `json:"total_vulns"`
+		ScanStatus     string `json:"scan_status"`
+		ScannedAt      string `json:"scanned_at"`
+	}
+
+	var results []ImageEntry
+	for rows.Next() {
+		var e ImageEntry
+		rows.Scan(
+			&e.Image, &e.ImageDigest, &e.ClusterID,
+			&e.NamespaceCount, &e.PodCount, &e.Namespaces,
+			&e.FirstSeen, &e.LastSeen,
+			&e.Critical, &e.High, &e.Medium, &e.Low, &e.TotalVulns,
+			&e.ScanStatus, &e.ScannedAt,
+		)
+		results = append(results, e)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
 
