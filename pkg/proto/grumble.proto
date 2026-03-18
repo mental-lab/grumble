@@ -58,15 +58,28 @@ message PodInfo {
   string phase        = 6;
 }
 
-// ScanResult contains Grype findings for a single image
+// ScanResult contains Grype findings for a single image,
+// including the full package list (SBOM) for dependency queries.
 message ScanResult {
-  string scan_id              = 1;
-  string image                = 2;
-  string image_digest         = 3;
-  string cluster_id           = 4;
+  string scan_id               = 1;
+  string image                 = 2;
+  string image_digest          = 3;
+  string cluster_id            = 4;
   repeated Vulnerability vulns = 5;
-  int64 scanned_at            = 6;
-  string grype_db_version     = 7;
+  int64 scanned_at             = 6;
+  string grype_db_version      = 7;
+  repeated Package packages    = 8; // full package/dependency list
+}
+
+// Package represents a single dependency found in an image (SBOM entry)
+message Package {
+  string name      = 1;
+  string version   = 2;
+  string type      = 3; // e.g. "java", "python", "npm", "apk", "deb", "rpm"
+  string language  = 4; // e.g. "java", "python", "javascript"
+  string location  = 5; // path inside the image where it was found
+  string purl      = 6; // package URL (pkg:type/name@version)
+  string license   = 7; // SPDX license expression
 }
 
 message Vulnerability {

@@ -457,7 +457,8 @@ func (x *PodInfo) GetPhase() string {
 	return ""
 }
 
-// ScanResult contains Grype findings for a single image
+// ScanResult contains Grype findings for a single image,
+// including the full package list (SBOM) for dependency queries.
 type ScanResult struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ScanId         string                 `protobuf:"bytes,1,opt,name=scan_id,json=scanId,proto3" json:"scan_id,omitempty"`
@@ -467,6 +468,7 @@ type ScanResult struct {
 	Vulns          []*Vulnerability       `protobuf:"bytes,5,rep,name=vulns,proto3" json:"vulns,omitempty"`
 	ScannedAt      int64                  `protobuf:"varint,6,opt,name=scanned_at,json=scannedAt,proto3" json:"scanned_at,omitempty"`
 	GrypeDbVersion string                 `protobuf:"bytes,7,opt,name=grype_db_version,json=grypeDbVersion,proto3" json:"grype_db_version,omitempty"`
+	Packages       []*Package             `protobuf:"bytes,8,rep,name=packages,proto3" json:"packages,omitempty"` // full package/dependency list
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -550,6 +552,106 @@ func (x *ScanResult) GetGrypeDbVersion() string {
 	return ""
 }
 
+func (x *ScanResult) GetPackages() []*Package {
+	if x != nil {
+		return x.Packages
+	}
+	return nil
+}
+
+// Package represents a single dependency found in an image (SBOM entry)
+type Package struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`         // e.g. "java", "python", "npm", "apk", "deb", "rpm"
+	Language      string                 `protobuf:"bytes,4,opt,name=language,proto3" json:"language,omitempty"` // e.g. "java", "python", "javascript"
+	Location      string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"` // path inside the image where it was found
+	Purl          string                 `protobuf:"bytes,6,opt,name=purl,proto3" json:"purl,omitempty"`         // package URL (pkg:type/name@version)
+	License       string                 `protobuf:"bytes,7,opt,name=license,proto3" json:"license,omitempty"`   // SPDX license expression
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Package) Reset() {
+	*x = Package{}
+	mi := &file_pkg_proto_grumble_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Package) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Package) ProtoMessage() {}
+
+func (x *Package) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_grumble_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Package.ProtoReflect.Descriptor instead.
+func (*Package) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Package) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Package) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Package) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Package) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *Package) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *Package) GetPurl() string {
+	if x != nil {
+		return x.Purl
+	}
+	return ""
+}
+
+func (x *Package) GetLicense() string {
+	if x != nil {
+		return x.License
+	}
+	return ""
+}
+
 type Vulnerability struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // CVE-YYYY-NNNNN
@@ -565,7 +667,7 @@ type Vulnerability struct {
 
 func (x *Vulnerability) Reset() {
 	*x = Vulnerability{}
-	mi := &file_pkg_proto_grumble_proto_msgTypes[6]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +679,7 @@ func (x *Vulnerability) String() string {
 func (*Vulnerability) ProtoMessage() {}
 
 func (x *Vulnerability) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_grumble_proto_msgTypes[6]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +692,7 @@ func (x *Vulnerability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vulnerability.ProtoReflect.Descriptor instead.
 func (*Vulnerability) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{6}
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Vulnerability) GetId() string {
@@ -653,7 +755,7 @@ type ScanRequest struct {
 
 func (x *ScanRequest) Reset() {
 	*x = ScanRequest{}
-	mi := &file_pkg_proto_grumble_proto_msgTypes[7]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +767,7 @@ func (x *ScanRequest) String() string {
 func (*ScanRequest) ProtoMessage() {}
 
 func (x *ScanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_grumble_proto_msgTypes[7]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +780,7 @@ func (x *ScanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScanRequest.ProtoReflect.Descriptor instead.
 func (*ScanRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{7}
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ScanRequest) GetScanId() string {
@@ -707,7 +809,7 @@ type ConfigUpdate struct {
 
 func (x *ConfigUpdate) Reset() {
 	*x = ConfigUpdate{}
-	mi := &file_pkg_proto_grumble_proto_msgTypes[8]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +821,7 @@ func (x *ConfigUpdate) String() string {
 func (*ConfigUpdate) ProtoMessage() {}
 
 func (x *ConfigUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_grumble_proto_msgTypes[8]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +834,7 @@ func (x *ConfigUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigUpdate.ProtoReflect.Descriptor instead.
 func (*ConfigUpdate) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{8}
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ConfigUpdate) GetScanIntervalSeconds() int32 {
@@ -766,7 +868,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_pkg_proto_grumble_proto_msgTypes[9]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -778,7 +880,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_grumble_proto_msgTypes[9]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +893,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{9}
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Heartbeat) GetTimestamp() int64 {
@@ -810,7 +912,7 @@ type Ping struct {
 
 func (x *Ping) Reset() {
 	*x = Ping{}
-	mi := &file_pkg_proto_grumble_proto_msgTypes[10]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -822,7 +924,7 @@ func (x *Ping) String() string {
 func (*Ping) ProtoMessage() {}
 
 func (x *Ping) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_grumble_proto_msgTypes[10]
+	mi := &file_pkg_proto_grumble_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -835,7 +937,7 @@ func (x *Ping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ping.ProtoReflect.Descriptor instead.
 func (*Ping) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{10}
+	return file_pkg_proto_grumble_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Ping) GetTimestamp() int64 {
@@ -882,7 +984,7 @@ const file_pkg_proto_grumble_proto_rawDesc = "" +
 	"\x05image\x18\x03 \x01(\tR\x05image\x12!\n" +
 	"\fimage_digest\x18\x04 \x01(\tR\vimageDigest\x12\x12\n" +
 	"\x04node\x18\x05 \x01(\tR\x04node\x12\x14\n" +
-	"\x05phase\x18\x06 \x01(\tR\x05phase\"\xf7\x01\n" +
+	"\x05phase\x18\x06 \x01(\tR\x05phase\"\xa8\x02\n" +
 	"\n" +
 	"ScanResult\x12\x17\n" +
 	"\ascan_id\x18\x01 \x01(\tR\x06scanId\x12\x14\n" +
@@ -893,7 +995,16 @@ const file_pkg_proto_grumble_proto_rawDesc = "" +
 	"\x05vulns\x18\x05 \x03(\v2\x19.grumble.v1.VulnerabilityR\x05vulns\x12\x1d\n" +
 	"\n" +
 	"scanned_at\x18\x06 \x01(\x03R\tscannedAt\x12(\n" +
-	"\x10grype_db_version\x18\a \x01(\tR\x0egrypeDbVersion\"\xd4\x01\n" +
+	"\x10grype_db_version\x18\a \x01(\tR\x0egrypeDbVersion\x12/\n" +
+	"\bpackages\x18\b \x03(\v2\x13.grumble.v1.PackageR\bpackages\"\xb1\x01\n" +
+	"\aPackage\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1a\n" +
+	"\blanguage\x18\x04 \x01(\tR\blanguage\x12\x1a\n" +
+	"\blocation\x18\x05 \x01(\tR\blocation\x12\x12\n" +
+	"\x04purl\x18\x06 \x01(\tR\x04purl\x12\x18\n" +
+	"\alicense\x18\a \x01(\tR\alicense\"\xd4\x01\n" +
 	"\rVulnerability\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fpackage_name\x18\x02 \x01(\tR\vpackageName\x12\x18\n" +
@@ -929,7 +1040,7 @@ func file_pkg_proto_grumble_proto_rawDescGZIP() []byte {
 	return file_pkg_proto_grumble_proto_rawDescData
 }
 
-var file_pkg_proto_grumble_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_pkg_proto_grumble_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_pkg_proto_grumble_proto_goTypes = []any{
 	(*AgentMessage)(nil),  // 0: grumble.v1.AgentMessage
 	(*ServerCommand)(nil), // 1: grumble.v1.ServerCommand
@@ -937,29 +1048,31 @@ var file_pkg_proto_grumble_proto_goTypes = []any{
 	(*PodInventory)(nil),  // 3: grumble.v1.PodInventory
 	(*PodInfo)(nil),       // 4: grumble.v1.PodInfo
 	(*ScanResult)(nil),    // 5: grumble.v1.ScanResult
-	(*Vulnerability)(nil), // 6: grumble.v1.Vulnerability
-	(*ScanRequest)(nil),   // 7: grumble.v1.ScanRequest
-	(*ConfigUpdate)(nil),  // 8: grumble.v1.ConfigUpdate
-	(*Heartbeat)(nil),     // 9: grumble.v1.Heartbeat
-	(*Ping)(nil),          // 10: grumble.v1.Ping
+	(*Package)(nil),       // 6: grumble.v1.Package
+	(*Vulnerability)(nil), // 7: grumble.v1.Vulnerability
+	(*ScanRequest)(nil),   // 8: grumble.v1.ScanRequest
+	(*ConfigUpdate)(nil),  // 9: grumble.v1.ConfigUpdate
+	(*Heartbeat)(nil),     // 10: grumble.v1.Heartbeat
+	(*Ping)(nil),          // 11: grumble.v1.Ping
 }
 var file_pkg_proto_grumble_proto_depIdxs = []int32{
 	2,  // 0: grumble.v1.AgentMessage.register:type_name -> grumble.v1.Registration
 	3,  // 1: grumble.v1.AgentMessage.inventory:type_name -> grumble.v1.PodInventory
 	5,  // 2: grumble.v1.AgentMessage.scan_result:type_name -> grumble.v1.ScanResult
-	9,  // 3: grumble.v1.AgentMessage.heartbeat:type_name -> grumble.v1.Heartbeat
-	7,  // 4: grumble.v1.ServerCommand.scan:type_name -> grumble.v1.ScanRequest
-	8,  // 5: grumble.v1.ServerCommand.config:type_name -> grumble.v1.ConfigUpdate
-	10, // 6: grumble.v1.ServerCommand.ping:type_name -> grumble.v1.Ping
+	10, // 3: grumble.v1.AgentMessage.heartbeat:type_name -> grumble.v1.Heartbeat
+	8,  // 4: grumble.v1.ServerCommand.scan:type_name -> grumble.v1.ScanRequest
+	9,  // 5: grumble.v1.ServerCommand.config:type_name -> grumble.v1.ConfigUpdate
+	11, // 6: grumble.v1.ServerCommand.ping:type_name -> grumble.v1.Ping
 	4,  // 7: grumble.v1.PodInventory.pods:type_name -> grumble.v1.PodInfo
-	6,  // 8: grumble.v1.ScanResult.vulns:type_name -> grumble.v1.Vulnerability
-	0,  // 9: grumble.v1.GrumbleServer.Connect:input_type -> grumble.v1.AgentMessage
-	1,  // 10: grumble.v1.GrumbleServer.Connect:output_type -> grumble.v1.ServerCommand
-	10, // [10:11] is the sub-list for method output_type
-	9,  // [9:10] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	7,  // 8: grumble.v1.ScanResult.vulns:type_name -> grumble.v1.Vulnerability
+	6,  // 9: grumble.v1.ScanResult.packages:type_name -> grumble.v1.Package
+	0,  // 10: grumble.v1.GrumbleServer.Connect:input_type -> grumble.v1.AgentMessage
+	1,  // 11: grumble.v1.GrumbleServer.Connect:output_type -> grumble.v1.ServerCommand
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_pkg_proto_grumble_proto_init() }
@@ -984,7 +1097,7 @@ func file_pkg_proto_grumble_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_proto_grumble_proto_rawDesc), len(file_pkg_proto_grumble_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

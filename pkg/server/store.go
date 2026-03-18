@@ -55,11 +55,27 @@ func (s *Store) migrate() error {
 			PRIMARY KEY (cluster_id, namespace, pod_name)
 		);
 
+		CREATE TABLE IF NOT EXISTS packages (
+			image        TEXT NOT NULL,
+			cluster_id   TEXT NOT NULL,
+			name         TEXT NOT NULL,
+			version      TEXT NOT NULL,
+			type         TEXT,
+			language     TEXT,
+			location     TEXT,
+			purl         TEXT,
+			license      TEXT,
+			scanned_at   DATETIME,
+			PRIMARY KEY (image, cluster_id, name, version)
+		);
+
 		CREATE TABLE IF NOT EXISTS agent_heartbeats (
 			agent_id    TEXT PRIMARY KEY,
 			last_seen   DATETIME
 		);
 
+		CREATE INDEX IF NOT EXISTS idx_pkg_name     ON packages(name);
+		CREATE INDEX IF NOT EXISTS idx_pkg_image    ON packages(image);
 		CREATE INDEX IF NOT EXISTS idx_scan_cluster ON scan_results(cluster_id);
 		CREATE INDEX IF NOT EXISTS idx_scan_image   ON scan_results(image);
 		CREATE INDEX IF NOT EXISTS idx_pod_cluster  ON pod_inventory(cluster_id);
@@ -107,7 +123,40 @@ func (s *Store) SaveScanResult(r *proto.ScanResult) error {
 		time.Unix(r.ScannedAt, 0),
 		r.GrypeDbVersion,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if len(r.Packages) > 0 {
+		return s.savePackages(r.Image, r.ClusterId, r.Packages, time.Unix(r.ScannedAt, 0))
+	}
+	return nil
+}
+
+func (s *Store) savePackages(image, clusterID string, pkgs []*proto.Package, scannedAt time.Time) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Clear old packages for this image+cluster before inserting fresh data
+	if _, err := tx.Exec(`DELETE FROM packages WHERE image = ? AND cluster_id = ?`, image, clusterID); err != nil {
+		return err
+	}
+
+	for _, p := range pkgs {
+		_, err := tx.Exec(`
+			INSERT OR REPLACE INTO packages
+				(image, cluster_id, name, version, type, language, location, purl, license, scanned_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			image, clusterID, p.Name, p.Version, p.Type, p.Language, p.Location, p.Purl, p.License, scannedAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Store) SaveInventory(clusterID string, inv *proto.PodInventory) error {

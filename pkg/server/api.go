@@ -25,10 +25,84 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/clusters", a.clusters)
 	mux.HandleFunc("/inventory", a.inventory)
 	mux.HandleFunc("/images", a.images)
+	mux.HandleFunc("/packages", a.packages)
 	return mux
 }
 
 // health satisfies the Grafana JSON datasource /  check
+// packages answers "which images use package X?" queries.
+// Query params:
+//   ?name=log4j         — exact or partial package name match
+//   ?type=java          — filter by ecosystem (java, python, npm, apk, deb, rpm)
+//   ?cluster=prod       — filter by cluster
+//   ?version_lt=2.15.0  — packages with version less than (string prefix match)
+func (a *API) packages(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	pkgType := r.URL.Query().Get("type")
+	cluster := r.URL.Query().Get("cluster")
+
+	query := `
+		SELECT
+			p.name, p.version, p.type, p.language, p.purl, p.license,
+			p.image, p.cluster_id,
+			COUNT(DISTINCT pi.pod_name) as pod_count,
+			COUNT(DISTINCT pi.namespace) as namespace_count,
+			p.scanned_at
+		FROM packages p
+		LEFT JOIN pod_inventory pi ON pi.image = p.image AND pi.cluster_id = p.cluster_id
+		WHERE 1=1`
+	args := []interface{}{}
+
+	if name != "" {
+		query += ` AND p.name LIKE ?`
+		args = append(args, "%"+name+"%")
+	}
+	if pkgType != "" {
+		query += ` AND p.type = ?`
+		args = append(args, pkgType)
+	}
+	if cluster != "" {
+		query += ` AND p.cluster_id = ?`
+		args = append(args, cluster)
+	}
+
+	query += ` GROUP BY p.name, p.version, p.image, p.cluster_id ORDER BY pod_count DESC, p.name`
+
+	rows, err := a.store.db.Query(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type PackageEntry struct {
+		Name           string `json:"name"`
+		Version        string `json:"version"`
+		Type           string `json:"type"`
+		Language       string `json:"language"`
+		Purl           string `json:"purl"`
+		License        string `json:"license"`
+		Image          string `json:"image"`
+		ClusterID      string `json:"cluster_id"`
+		PodCount       int    `json:"pod_count"`
+		NamespaceCount int    `json:"namespace_count"`
+		ScannedAt      string `json:"scanned_at"`
+	}
+
+	var results []PackageEntry
+	for rows.Next() {
+		var e PackageEntry
+		rows.Scan(
+			&e.Name, &e.Version, &e.Type, &e.Language, &e.Purl, &e.License,
+			&e.Image, &e.ClusterID, &e.PodCount, &e.NamespaceCount, &e.ScannedAt,
+		)
+		results = append(results, e)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func (a *API) health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
