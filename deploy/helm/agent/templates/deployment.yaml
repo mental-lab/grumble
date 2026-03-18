@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grumble-agent.fullname" . }}
+  labels:
+    app: grumble-agent
+    cluster: {{ .Values.agent.clusterID | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grumble-agent
+  template:
+    metadata:
+      labels:
+        app: grumble-agent
+        cluster: {{ .Values.agent.clusterID | quote }}
+    spec:
+      serviceAccountName: {{ include "grumble-agent.serviceAccountName" . }}
+      containers:
+        - name: grumble-agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --cluster-id={{ .Values.agent.clusterID }}
+            - --server={{ .Values.agent.serverAddr }}
+            - --grype-db-dir={{ .Values.agent.grypeDBDir }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: grype-db
+              mountPath: {{ .Values.agent.grypeDBDir }}
+      volumes:
+        - name: grype-db
+          emptyDir: {}
