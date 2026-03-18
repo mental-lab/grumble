@@ -24,6 +24,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/grumble.json
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
     volumes:
       - ./deploy/grafana/dashboard.json:/var/lib/grafana/dashboards/grumble.json
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning
