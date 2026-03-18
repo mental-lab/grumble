@@ -88,6 +88,9 @@ Available endpoints:
 - `GET /clusters` — per-cluster summary
 - `GET /inventory?cluster=<id>` — pod inventory for a cluster
 
+<img width="1728" height="960" alt="image" src="https://github.com/user-attachments/assets/f5d058e1-12a5-4abb-9ad0-f3ce25c29d93" />
+
+
 ## Name
 
 Grumble pays tribute to [Grype](https://github.com/anchore/grype). It grumbles loudly when it finds vulnerabilities in your clusters.
