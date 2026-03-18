@@ -2,13 +2,50 @@
   "title": "Grumble — Image Catalog & Vulnerability Hotspots",
   "uid": "grumble-hotspots",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "5m",
   "tags": ["security", "grumble", "grype"],
+  "templating": {
+    "list": [
+      {
+        "name": "image_filter",
+        "label": "Image",
+        "type": "textbox",
+        "current": { "value": "" },
+        "hide": 0,
+        "options": [],
+        "query": ""
+      },
+      {
+        "name": "severity_filter",
+        "label": "Min Severity",
+        "type": "custom",
+        "current": { "value": "", "text": "All" },
+        "hide": 0,
+        "options": [
+          { "value": "",         "text": "All",      "selected": true },
+          { "value": "Critical", "text": "Critical",  "selected": false },
+          { "value": "High",     "text": "High",      "selected": false },
+          { "value": "Medium",   "text": "Medium",    "selected": false },
+          { "value": "Low",      "text": "Low",       "selected": false }
+        ],
+        "query": "All,Critical,High,Medium,Low"
+      },
+      {
+        "name": "package_search",
+        "label": "Package Name",
+        "type": "textbox",
+        "current": { "value": "" },
+        "hide": 0,
+        "options": [],
+        "query": ""
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
-      "title": "Total Critical CVEs (all clusters)",
+      "title": "Total Critical CVEs",
       "type": "stat",
       "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
       "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
@@ -25,7 +62,7 @@
       },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/hotspots",
           "fields": [{ "name": "critical", "type": "number" }]
         }
@@ -33,7 +70,7 @@
     },
     {
       "id": 2,
-      "title": "Total High CVEs (all clusters)",
+      "title": "Total High CVEs",
       "type": "stat",
       "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
       "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
@@ -50,7 +87,7 @@
       },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/hotspots",
           "fields": [{ "name": "high", "type": "number" }]
         }
@@ -61,23 +98,61 @@
       "title": "Clusters Reporting",
       "type": "stat",
       "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "value" },
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/clusters",
           "fields": [{ "name": "cluster_id", "type": "string" }]
         }
       ]
     },
     {
+      "id": 7,
+      "title": "Images Pending Scan",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["count"] } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
+          "path": "/images?scan_status=pending",
+          "fields": [{ "name": "image", "type": "string" }]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Total Images Scanned",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
+          "path": "/hotspots",
+          "fields": [{ "name": "image", "type": "string" }]
+        }
+      ]
+    },
+    {
       "id": 4,
-      "title": "Top Vulnerability Hotspots (risk score = severity × pod count)",
-      "description": "Images ranked by blast radius: a critical CVE in 100 pods scores higher than a critical CVE in 1 pod",
+      "title": "Top Vulnerability Hotspots",
+      "description": "Images ranked by risk score = (critical×10 + high×3 + medium) × pod count",
       "type": "table",
       "gridPos": { "x": 0, "y": 4, "w": 24, "h": 10 },
       "options": {
-        "sortBy": [{ "displayName": "Risk Score", "desc": true }]
+        "sortBy": [{ "displayName": "risk_score", "desc": true }]
       },
       "fieldConfig": {
         "overrides": [
@@ -100,7 +175,7 @@
           {
             "matcher": { "id": "byName", "options": "risk_score" },
             "properties": [
-              { "id": "custom.width", "value": 100 },
+              { "id": "custom.width", "value": 120 },
               { "id": "custom.displayMode", "value": "lcd-gauge" },
               { "id": "max", "value": 1000 }
             ]
@@ -109,7 +184,7 @@
       },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/hotspots",
           "fields": [
             { "name": "image",      "type": "string" },
@@ -117,6 +192,7 @@
             { "name": "critical",   "type": "number" },
             { "name": "high",       "type": "number" },
             { "name": "medium",     "type": "number" },
+            { "name": "low",        "type": "number" },
             { "name": "pod_count",  "type": "number" },
             { "name": "risk_score", "type": "number" },
             { "name": "scanned_at", "type": "string" }
@@ -125,109 +201,8 @@
       ]
     },
     {
-      "id": 7,
-      "title": "Images Pending Scan",
-      "type": "stat",
-      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "background" },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "yellow", "value": 1 }
-            ]
-          }
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource" },
-          "path": "/images?scan_status=pending",
-          "fields": [{ "name": "image", "type": "string" }]
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "title": "Image Catalog — All Running Images",
-      "description": "Every unique image observed across all clusters. Use scan_status=pending to find unscanned images.",
-      "type": "table",
-      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
-      "options": {
-        "sortBy": [{ "displayName": "pod_count", "desc": true }]
-      },
-      "fieldConfig": {
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "scan_status" },
-            "properties": [
-              { "id": "custom.width", "value": 100 },
-              { "id": "mappings", "value": [
-                { "type": "value", "options": { "scanned": { "color": "green", "text": "✓ scanned" } } },
-                { "type": "value", "options": { "pending": { "color": "yellow", "text": "⏳ pending" } } }
-              ]},
-              { "id": "custom.displayMode", "value": "color-background" }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "critical" },
-            "properties": [
-              { "id": "custom.width", "value": 80 },
-              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } },
-              { "id": "custom.displayMode", "value": "color-background" }
-            ]
-          }
-        ]
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource" },
-          "path": "/images",
-          "fields": [
-            { "name": "image",           "type": "string" },
-            { "name": "cluster_id",      "type": "string" },
-            { "name": "pod_count",       "type": "number" },
-            { "name": "namespace_count", "type": "number" },
-            { "name": "namespaces",      "type": "string" },
-            { "name": "critical",        "type": "number" },
-            { "name": "high",            "type": "number" },
-            { "name": "total_vulns",     "type": "number" },
-            { "name": "scan_status",     "type": "string" },
-            { "name": "last_seen",       "type": "string" }
-          ]
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "title": "Package / Dependency Search — \"Which images use X?\"",
-      "description": "Search by package name (e.g. log4j, openssl, requests). Shows every image+cluster running that package and how many pods are affected.",
-      "type": "table",
-      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 9 },
-      "options": {
-        "sortBy": [{ "displayName": "pod_count", "desc": true }]
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource" },
-          "path": "/packages?name=${package_search}",
-          "fields": [
-            { "name": "name",            "type": "string" },
-            { "name": "version",         "type": "string" },
-            { "name": "type",            "type": "string" },
-            { "name": "image",           "type": "string" },
-            { "name": "cluster_id",      "type": "string" },
-            { "name": "pod_count",       "type": "number" },
-            { "name": "namespace_count", "type": "number" },
-            { "name": "license",         "type": "string" }
-          ]
-        }
-      ]
-    },
-    {
       "id": 5,
-      "title": "Per-Cluster Summary",
+      "title": "Per-Cluster Critical CVE Count",
       "type": "bargauge",
       "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
       "options": {
@@ -236,7 +211,7 @@
       },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/clusters",
           "fields": [
             { "name": "cluster_id", "type": "string" },
@@ -252,7 +227,7 @@
       "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
       "targets": [
         {
-          "datasource": { "type": "marcusolsson-json-datasource" },
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
           "path": "/inventory",
           "fields": [
             { "name": "cluster_id", "type": "string" },
@@ -260,6 +235,149 @@
             { "name": "pod_name",   "type": "string" },
             { "name": "image",      "type": "string" },
             { "name": "phase",      "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Image Catalog — All Running Images",
+      "description": "Every unique image observed across all clusters with scan status and vulnerability counts.",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
+      "options": {
+        "sortBy": [{ "displayName": "total_vulns", "desc": true }]
+      },
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "scan_status" },
+            "properties": [
+              { "id": "custom.width", "value": 110 },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "scanned": { "color": "green", "text": "✓ scanned" } } },
+                { "type": "value", "options": { "pending": { "color": "yellow", "text": "⏳ pending" } } }
+              ]},
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "critical" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "high" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 1 }] } },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
+          "path": "/images",
+          "fields": [
+            { "name": "image",           "type": "string" },
+            { "name": "cluster_id",      "type": "string" },
+            { "name": "pod_count",       "type": "number" },
+            { "name": "namespaces",      "type": "string" },
+            { "name": "critical",        "type": "number" },
+            { "name": "high",            "type": "number" },
+            { "name": "medium",          "type": "number" },
+            { "name": "total_vulns",     "type": "number" },
+            { "name": "scan_status",     "type": "string" },
+            { "name": "last_seen",       "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Vulnerability Detail — CVEs by Image",
+      "description": "Use the Image filter at the top to drill into a specific image. Shows each CVE with package name, version, severity, and whether a fix is available.",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 12 },
+      "options": {
+        "sortBy": [{ "displayName": "severity", "desc": false }]
+      },
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "severity" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "mappings", "value": [
+                { "type": "value", "options": { "Critical": { "color": "red",    "text": "🔴 Critical" } } },
+                { "type": "value", "options": { "High":     { "color": "orange", "text": "🟠 High"     } } },
+                { "type": "value", "options": { "Medium":   { "color": "yellow", "text": "🟡 Medium"   } } },
+                { "type": "value", "options": { "Low":      { "color": "blue",   "text": "🔵 Low"      } } }
+              ]},
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "fixed_in" },
+            "properties": [
+              { "id": "custom.width", "value": 120 },
+              { "id": "mappings", "value": [
+                { "type": "special", "options": { "match": "null", "result": { "color": "red", "text": "no fix" } } }
+              ]}
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "vuln_id" },
+            "properties": [{ "id": "custom.width", "value": 140 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "description" },
+            "properties": [{ "id": "custom.width", "value": 400 }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
+          "path": "/vulns?image=${image_filter}&severity=${severity_filter}",
+          "fields": [
+            { "name": "vuln_id",      "type": "string" },
+            { "name": "severity",     "type": "string" },
+            { "name": "package_name", "type": "string" },
+            { "name": "version",      "type": "string" },
+            { "name": "fixed_in",     "type": "string" },
+            { "name": "image",        "type": "string" },
+            { "name": "description",  "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Package / Dependency Search — \"Which images use X?\"",
+      "description": "Search by package name (e.g. openssl, log4j). Shows every image running that package and how many pods are affected.",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 44, "w": 24, "h": 9 },
+      "options": {
+        "sortBy": [{ "displayName": "pod_count", "desc": true }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
+          "path": "/packages?name=${package_search}",
+          "fields": [
+            { "name": "name",            "type": "string" },
+            { "name": "version",         "type": "string" },
+            { "name": "type",            "type": "string" },
+            { "name": "image",           "type": "string" },
+            { "name": "cluster_id",      "type": "string" },
+            { "name": "pod_count",       "type": "number" },
+            { "name": "license",         "type": "string" }
           ]
         }
       ]

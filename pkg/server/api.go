@@ -26,6 +26,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/inventory", a.inventory)
 	mux.HandleFunc("/images", a.images)
 	mux.HandleFunc("/packages", a.packages)
+	mux.HandleFunc("/vulns", a.vulns)
 	return mux
 }
 
@@ -107,10 +108,91 @@ func (a *API) health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// vulns returns individual vulnerability details for an image.
+// Query params:
+//
+//	?image=<image>      — filter by image (required for useful results)
+//	?cluster=<id>       — filter by cluster
+//	?severity=Critical  — filter by severity (Critical, High, Medium, Low)
+func (a *API) vulns(w http.ResponseWriter, r *http.Request) {
+	image := r.URL.Query().Get("image")
+	cluster := r.URL.Query().Get("cluster")
+	severity := r.URL.Query().Get("severity")
+
+	query := `
+		SELECT
+			s.image, s.cluster_id,
+			v.value ->> '$.id'           AS vuln_id,
+			v.value ->> '$.package_name' AS package_name,
+			v.value ->> '$.version'      AS version,
+			v.value ->> '$.severity'     AS severity,
+			v.value ->> '$.fixed_in'     AS fixed_in,
+			v.value ->> '$.description'  AS description
+		FROM scan_results s,
+			json_each(s.vulns_json) v
+		WHERE 1=1`
+	args := []interface{}{}
+
+	if image != "" {
+		query += ` AND s.image = ?`
+		args = append(args, image)
+	}
+	if cluster != "" {
+		query += ` AND s.cluster_id = ?`
+		args = append(args, cluster)
+	}
+	if severity != "" {
+		query += ` AND (v.value ->> '$.severity') = ?`
+		args = append(args, severity)
+	}
+	query += ` ORDER BY
+		CASE v.value ->> '$.severity'
+			WHEN 'Critical' THEN 1
+			WHEN 'High'     THEN 2
+			WHEN 'Medium'   THEN 3
+			WHEN 'Low'      THEN 4
+			ELSE 5
+		END,
+		s.image`
+
+	rows, err := a.store.db.Query(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type VulnEntry struct {
+		Image       string `json:"image"`
+		ClusterID   string `json:"cluster_id"`
+		VulnID      string `json:"vuln_id"`
+		PackageName string `json:"package_name"`
+		Version     string `json:"version"`
+		Severity    string `json:"severity"`
+		FixedIn     string `json:"fixed_in"`
+		Description string `json:"description"`
+	}
+
+	var results []VulnEntry
+	for rows.Next() {
+		var v VulnEntry
+		rows.Scan(&v.Image, &v.ClusterID, &v.VulnID, &v.PackageName, &v.Version, &v.Severity, &v.FixedIn, &v.Description)
+		results = append(results, v)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 // hotspots returns images ranked by (critical+high vulns) × (number of pods using the image)
 // This is the core "where do we focus?" view.
 func (a *API) hotspots(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.store.db.Query(`
+		WITH latest AS (
+			SELECT image, cluster_id, MAX(scanned_at) AS max_at
+			FROM scan_results
+			GROUP BY image, cluster_id
+		)
 		SELECT
 			s.image,
 			s.cluster_id,
@@ -119,9 +201,10 @@ func (a *API) hotspots(w http.ResponseWriter, r *http.Request) {
 			s.medium,
 			s.low,
 			s.scanned_at,
-			COUNT(p.pod_name) as pod_count,
-			(s.critical * 10 + s.high * 3 + s.medium) * COUNT(p.pod_name) as risk_score
+			COUNT(DISTINCT p.pod_name) as pod_count,
+			(s.critical * 10 + s.high * 3 + s.medium) * COUNT(DISTINCT p.pod_name) as risk_score
 		FROM scan_results s
+		JOIN latest ON s.image = latest.image AND s.cluster_id = latest.cluster_id AND s.scanned_at = latest.max_at
 		LEFT JOIN pod_inventory p ON p.image = s.image AND p.cluster_id = s.cluster_id
 		GROUP BY s.image, s.cluster_id
 		ORDER BY risk_score DESC
@@ -159,9 +242,14 @@ func (a *API) hotspots(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) clusters(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.store.db.Query(`
-		SELECT cluster_id, COUNT(DISTINCT image) as images, SUM(critical) as critical, SUM(high) as high
-		FROM scan_results
-		GROUP BY cluster_id
+		WITH latest AS (
+			SELECT image, cluster_id, MAX(scanned_at) AS max_at
+			FROM scan_results GROUP BY image, cluster_id
+		)
+		SELECT s.cluster_id, COUNT(DISTINCT s.image) as images, SUM(s.critical) as critical, SUM(s.high) as high
+		FROM scan_results s
+		JOIN latest ON s.image = latest.image AND s.cluster_id = latest.cluster_id AND s.scanned_at = latest.max_at
+		GROUP BY s.cluster_id
 	`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

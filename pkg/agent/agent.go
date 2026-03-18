@@ -152,12 +152,15 @@ func (a *Agent) connect(ctx context.Context) error {
 		return fmt.Errorf("sending registration: %w", err)
 	}
 
-	// Process pod events and scan images
+	// Process pod events: report inventory and scan images
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case event := <-a.watcher.Events():
+			// Always report pod inventory so the server tracks what's running
+			a.sendInventory(stream, event)
+
 			if event.Type == "DELETE" {
 				continue
 			}
@@ -165,6 +168,29 @@ func (a *Agent) connect(ctx context.Context) error {
 				go a.scanAndSend(ctx, stream, c.Image)
 			}
 		}
+	}
+}
+
+func (a *Agent) sendInventory(stream proto.GrumbleServer_ConnectClient, event PodEvent) {
+	pod := event.Pod
+	var pods []*proto.PodInfo
+	for _, c := range pod.Spec.Containers {
+		pods = append(pods, &proto.PodInfo{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+			Image:     c.Image,
+			Node:      pod.Spec.NodeName,
+			Phase:     string(pod.Status.Phase),
+		})
+	}
+	if err := stream.Send(&proto.AgentMessage{
+		AgentId:   a.cfg.AgentID,
+		ClusterId: a.cfg.ClusterID,
+		Payload: &proto.AgentMessage_Inventory{
+			Inventory: &proto.PodInventory{Pods: pods},
+		},
+	}); err != nil {
+		a.log.Warn("failed to send inventory", zap.Error(err))
 	}
 }
 
