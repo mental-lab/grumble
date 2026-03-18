@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	proto "github.com/mental-lab/grumble/pkg/proto"
+	"github.com/mental-lab/grumble/pkg/tlsconfig"
 )
 
 const (
@@ -40,6 +41,11 @@ type Config struct {
 	ClusterID  string
 	ServerAddr string // grumble-server address e.g. grumble.example.com:9090
 	GrypeDBDir string
+
+	// mTLS — all three required for secure mode
+	TLSCertFile string // agent client cert
+	TLSKeyFile  string // agent client key
+	TLSCAFile   string // CA cert to verify server
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
@@ -79,10 +85,21 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) connect(ctx context.Context) error {
-	conn, err := grpc.DialContext(ctx, a.cfg.ServerAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()), // TODO: mTLS
-		grpc.WithBlock(),
-	)
+	dialOpts := []grpc.DialOption{grpc.WithBlock()}
+
+	if a.cfg.TLSCertFile != "" && a.cfg.TLSKeyFile != "" && a.cfg.TLSCAFile != "" {
+		creds, err := tlsconfig.AgentCredentials(a.cfg.TLSCertFile, a.cfg.TLSKeyFile, a.cfg.TLSCAFile)
+		if err != nil {
+			return fmt.Errorf("building mTLS credentials: %w", err)
+		}
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
+		a.log.Info("mTLS enabled", zap.String("server", a.cfg.ServerAddr))
+	} else {
+		a.log.Warn("mTLS not configured — using insecure connection (not recommended for production)")
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
+	conn, err := grpc.DialContext(ctx, a.cfg.ServerAddr, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("dialing server: %w", err)
 	}
