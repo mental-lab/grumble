@@ -9,6 +9,7 @@ import (
 	"github.com/anchore/grype/grype/db"
 	"github.com/anchore/grype/grype/pkg"
 	"github.com/anchore/grype/grype/vulnerability"
+	"github.com/anchore/syft/syft"
 	"go.uber.org/zap"
 
 	proto "github.com/mental-lab/grumble/pkg/proto"
@@ -44,7 +45,9 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 	}
 
 	packages, pkgContext, _, err := pkg.Provide(image, pkg.ProviderConfig{
-		SyftProviderConfig: pkg.SyftProviderConfig{},
+		SyftProviderConfig: pkg.SyftProviderConfig{
+			SBOMOptions: syft.DefaultCreateSBOMConfig(),
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generating SBOM for %s: %w", image, err)
