@@ -1,0 +1,29 @@
+agent:
+  # Unique identifier for this cluster — required
+  clusterID: ""
+  # Address of the grumble-server gRPC endpoint
+  serverAddr: "grumble-server:9090"
+  # Directory to cache the Grype vulnerability DB
+  grypeDBDir: "/tmp/grype-db"
+
+image:
+  repository: ghcr.io/mental-lab/grumble-agent
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Namespaces to ignore (agent will not scan pods in these)
+ignoreNamespaces:
+  - kube-system
+  - kube-public
+
+serviceAccount:
+  create: true
+  name: ""

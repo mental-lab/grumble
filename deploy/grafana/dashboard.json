@@ -1,0 +1,167 @@
+{
+  "title": "Grumble — Multi-Cluster Vulnerability Hotspots",
+  "uid": "grumble-hotspots",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5m",
+  "tags": ["security", "grumble", "grype"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Critical CVEs (all clusters)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/hotspots",
+          "fields": [{ "name": "critical", "type": "number" }]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Total High CVEs (all clusters)",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 25 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/hotspots",
+          "fields": [{ "name": "high", "type": "number" }]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Clusters Reporting",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "options": { "colorMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/clusters",
+          "fields": [{ "name": "cluster_id", "type": "string" }]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Top Vulnerability Hotspots (risk score = severity × pod count)",
+      "description": "Images ranked by blast radius: a critical CVE in 100 pods scores higher than a critical CVE in 1 pod",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 10 },
+      "options": {
+        "sortBy": [{ "displayName": "Risk Score", "desc": true }]
+      },
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "critical" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "high" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 1 }] } },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "risk_score" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "custom.displayMode", "value": "lcd-gauge" },
+              { "id": "max", "value": 1000 }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/hotspots",
+          "fields": [
+            { "name": "image",      "type": "string" },
+            { "name": "cluster_id", "type": "string" },
+            { "name": "critical",   "type": "number" },
+            { "name": "high",       "type": "number" },
+            { "name": "medium",     "type": "number" },
+            { "name": "pod_count",  "type": "number" },
+            { "name": "risk_score", "type": "number" },
+            { "name": "scanned_at", "type": "string" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Per-Cluster Summary",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/clusters",
+          "fields": [
+            { "name": "cluster_id", "type": "string" },
+            { "name": "critical",   "type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Pod Inventory",
+      "type": "table",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "marcusolsson-json-datasource" },
+          "path": "/inventory",
+          "fields": [
+            { "name": "cluster_id", "type": "string" },
+            { "name": "namespace",  "type": "string" },
+            { "name": "pod_name",   "type": "string" },
+            { "name": "image",      "type": "string" },
+            { "name": "phase",      "type": "string" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: grumble-agent
+description: Grumble in-cluster agent — watches pods and scans images with Grype
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - security
+  - vulnerability
+  - grype
+  - kubernetes
+home: https://github.com/mental-lab/grumble
+sources:
+  - https://github.com/mental-lab/grumble
