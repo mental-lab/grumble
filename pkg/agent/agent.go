@@ -50,6 +50,9 @@ type Config struct {
 	// SATokenPath is the path to the Kubernetes ServiceAccount token used for
 	// OIDC authentication. Defaults to the standard in-cluster path.
 	SATokenPath string
+
+	// Dev disables TLS and OIDC authentication. For local testing only.
+	Dev bool
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
@@ -104,10 +107,14 @@ func (a *Agent) connect(ctx context.Context) error {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	// Authentication via Kubernetes ServiceAccount OIDC token (preferred)
-	tokenSource := auth.NewTokenSource(a.cfg.SATokenPath)
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(tokenSource))
-	a.log.Info("OIDC ServiceAccount token auth enabled")
+	// Authentication via Kubernetes ServiceAccount OIDC token (skipped in dev mode)
+	if !a.cfg.Dev {
+		tokenSource := auth.NewTokenSource(a.cfg.SATokenPath)
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(tokenSource))
+		a.log.Info("OIDC ServiceAccount token auth enabled")
+	} else {
+		a.log.Warn("OIDC auth disabled (dev mode)")
+	}
 
 	conn, err := grpc.DialContext(ctx, a.cfg.ServerAddr, dialOpts...)
 	if err != nil {

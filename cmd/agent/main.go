@@ -24,6 +24,7 @@ func main() {
 		kubeconfig  string
 		tlsCA       string
 		saTokenPath string
+		dev         bool
 	)
 
 	cmd := &cobra.Command{
@@ -57,6 +58,7 @@ func main() {
 				GrypeDBDir:  grypeDBDir,
 				TLSCAFile:   tlsCA,
 				SATokenPath: saTokenPath,
+				Dev:         dev,
 			}, watcher, scanner, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -77,6 +79,7 @@ func main() {
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig (defaults to in-cluster config)")
 	cmd.Flags().StringVar(&tlsCA, "tls-ca", "", "CA cert to verify server TLS certificate (uses system CAs if omitted)")
 	cmd.Flags().StringVar(&saTokenPath, "sa-token-path", "", "Path to ServiceAccount token for OIDC auth (uses default in-cluster path if omitted)")
+	cmd.Flags().BoolVar(&dev, "dev", false, "Disable TLS and OIDC auth (local testing only)")
 	cmd.MarkFlagRequired("cluster-id")
 
 	if err := cmd.Execute(); err != nil {
