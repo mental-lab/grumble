@@ -1,5 +1,8 @@
-// Package tlsconfig provides helpers for building mTLS credentials
-// used between grumble-agent and grumble-server.
+// Package tlsconfig provides helpers for building TLS credentials
+// for the gRPC connection between grumble-agent and grumble-server.
+//
+// Authentication is handled by OIDC ServiceAccount tokens (see pkg/auth).
+// TLS here provides transport encryption only — no client certificates needed.
 package tlsconfig
 
 import (
@@ -12,52 +15,33 @@ import (
 )
 
 // ServerCredentials returns gRPC transport credentials for the server.
-// It presents its own cert/key and optionally requires client certs
-// signed by the provided CA.
-func ServerCredentials(certFile, keyFile, caFile string) (credentials.TransportCredentials, error) {
+// Agents authenticate via OIDC tokens — no client cert required.
+func ServerCredentials(certFile, keyFile string) (credentials.TransportCredentials, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("loading server cert/key: %w", err)
 	}
 
-	cfg := &tls.Config{
+	return credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientAuth:   tls.NoClientCert, // OIDC tokens handle auth
 		MinVersion:   tls.VersionTLS13,
-	}
-
-	if caFile != "" {
-		pool, err := loadCertPool(caFile)
-		if err != nil {
-			return nil, err
-		}
-		cfg.ClientCAs = pool
-	}
-
-	return credentials.NewTLS(cfg), nil
+	}), nil
 }
 
 // AgentCredentials returns gRPC transport credentials for the agent.
-// It verifies the server cert against the CA and presents its own
-// client cert/key so the server can authenticate it.
-func AgentCredentials(certFile, keyFile, caFile string) (credentials.TransportCredentials, error) {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("loading agent cert/key: %w", err)
-	}
-
+// Verifies the server cert against the provided CA.
+// Agent identity is proven via OIDC token, not a client cert.
+func AgentCredentials(caFile string) (credentials.TransportCredentials, error) {
 	pool, err := loadCertPool(caFile)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      pool,
-		MinVersion:   tls.VersionTLS13,
-	}
-
-	return credentials.NewTLS(cfg), nil
+	return credentials.NewTLS(&tls.Config{
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS13,
+	}), nil
 }
 
 func loadCertPool(caFile string) (*x509.CertPool, error) {
