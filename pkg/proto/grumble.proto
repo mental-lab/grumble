@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package grumble.v1;
+
+option go_package = "github.com/mental-lab/grumble/pkg/proto";
+
+// GrumbleServer is the central aggregation service.
+// Agents in each cluster connect outbound to this server.
+service GrumbleServer {
+  // Connect establishes a persistent bidirectional stream between
+  // a cluster agent and the server. The agent initiates this connection,
+  // allowing it to work behind firewalls and NAT.
+  rpc Connect(stream AgentMessage) returns (stream ServerCommand);
+}
+
+// AgentMessage is sent from agent → server
+message AgentMessage {
+  string agent_id   = 1; // unique agent identifier
+  string cluster_id = 2; // cluster name/identifier
+
+  oneof payload {
+    Registration   register     = 3;
+    PodInventory   inventory    = 4;
+    ScanResult     scan_result  = 5;
+    Heartbeat      heartbeat    = 6;
+  }
+}
+
+// ServerCommand is sent from server → agent
+message ServerCommand {
+  oneof command {
+    ScanRequest  scan   = 1;
+    ConfigUpdate config = 2;
+    Ping         ping   = 3;
+  }
+}
+
+// Registration is sent once on connect
+message Registration {
+  string cluster_id      = 1;
+  string k8s_version     = 2;
+  string agent_version   = 3;
+  string grype_db_version = 4;
+}
+
+// PodInventory is sent when pod state changes in the cluster
+message PodInventory {
+  repeated PodInfo pods = 1;
+  int64 timestamp       = 2;
+}
+
+message PodInfo {
+  string name         = 1;
+  string namespace    = 2;
+  string image        = 3;
+  string image_digest = 4;
+  string node         = 5;
+  string phase        = 6;
+}
+
+// ScanResult contains Grype findings for a single image
+message ScanResult {
+  string scan_id              = 1;
+  string image                = 2;
+  string image_digest         = 3;
+  string cluster_id           = 4;
+  repeated Vulnerability vulns = 5;
+  int64 scanned_at            = 6;
+  string grype_db_version     = 7;
+}
+
+message Vulnerability {
+  string id          = 1; // CVE-YYYY-NNNNN
+  string package_name = 2;
+  string version     = 3;
+  string fixed_in    = 4;
+  string severity    = 5; // CRITICAL, HIGH, MEDIUM, LOW, NEGLIGIBLE
+  string cvss_score  = 6;
+  string description = 7;
+}
+
+// ScanRequest tells the agent to scan a specific image
+message ScanRequest {
+  string scan_id = 1;
+  string image   = 2;
+}
+
+// ConfigUpdate pushes new config to the agent
+message ConfigUpdate {
+  int32  scan_interval_seconds  = 1;
+  int32  max_concurrent_scans   = 2;
+  repeated string ignore_namespaces = 3;
+}
+
+// Heartbeat / Ping for connection health
+message Heartbeat {
+  int64 timestamp = 1;
+}
+
+message Ping {
+  int64 timestamp = 1;
+}
