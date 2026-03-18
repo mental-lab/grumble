@@ -7,10 +7,8 @@ import (
 
 	"github.com/anchore/grype/grype"
 	"github.com/anchore/grype/grype/db"
-	"github.com/anchore/grype/grype/match"
 	"github.com/anchore/grype/grype/pkg"
 	"github.com/anchore/grype/grype/vulnerability"
-	"github.com/anchore/syft/syft/source"
 	"go.uber.org/zap"
 
 	proto "github.com/mental-lab/grumble/pkg/proto"
@@ -45,25 +43,15 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 		return nil, fmt.Errorf("loading grype db: %w", err)
 	}
 
-	packages, pkgContext, err := pkg.Provide(image, pkg.ProviderConfig{
-		SyftProviderConfig: pkg.SyftProviderConfig{
-			RegistryOptions: &source.RegistryOptions{},
-		},
+	packages, pkgContext, _, err := pkg.Provide(image, pkg.ProviderConfig{
+		SyftProviderConfig: pkg.SyftProviderConfig{},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generating SBOM for %s: %w", image, err)
 	}
 
-	matcher := grype.DefaultGrypeIgnoreRules
-	remainingMatches, ignoredMatches, err := grype.FindVulnerabilities(
-		vulnerability.NewProviderFromStore(store),
-		pkgContext,
-		match.NewDefaultMatcher(match.MatcherConfig{}),
-		packages,
-		matcher,
-	)
-	_ = ignoredMatches
-
+	vulnMatcher := grype.DefaultVulnerabilityMatcher(*store)
+	remainingMatches, _, err := vulnMatcher.FindMatches(packages, pkgContext)
 	if err != nil {
 		return nil, fmt.Errorf("finding vulnerabilities: %w", err)
 	}
@@ -73,17 +61,23 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 		Image:          image,
 		ClusterId:      s.clusterID,
 		ScannedAt:      time.Now().Unix(),
-		GrypeDbVersion: dbStatus.SchemaVersion,
+		GrypeDbVersion: fmt.Sprintf("%d", dbStatus.SchemaVersion),
 	}
 
 	for _, m := range remainingMatches.Sorted() {
+		severity := ""
+		description := ""
+		if meta, err := store.GetMetadata(m.Vulnerability.ID, m.Vulnerability.Namespace); err == nil && meta != nil {
+			severity = meta.Severity
+			description = meta.Description
+		}
 		result.Vulns = append(result.Vulns, &proto.Vulnerability{
 			Id:          m.Vulnerability.ID,
 			PackageName: m.Package.Name,
 			Version:     m.Package.Version,
 			FixedIn:     fixedIn(m.Vulnerability),
-			Severity:    m.Vulnerability.Severity,
-			Description: m.Vulnerability.Description,
+			Severity:    severity,
+			Description: description,
 		})
 	}
 
