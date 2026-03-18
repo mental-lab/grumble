@@ -43,13 +43,12 @@ type Config struct {
 	ServerAddr string // grumble-server address e.g. grumble.example.com:9090
 	GrypeDBDir string
 
-	// mTLS — all three required for secure mode
-	TLSCertFile string // agent client cert
-	TLSKeyFile  string // agent client key
-	TLSCAFile   string // CA cert to verify server
+	// TLSCAFile is the CA cert used to verify the server's TLS certificate.
+	// Leave empty to use system CAs (e.g. for publicly trusted certs).
+	TLSCAFile string
 
-	// OIDC — path to the ServiceAccount token (leave empty for default in-cluster path)
-	// This is the preferred authentication method.
+	// SATokenPath is the path to the Kubernetes ServiceAccount token used for
+	// OIDC authentication. Defaults to the standard in-cluster path.
 	SATokenPath string
 }
 
@@ -92,16 +91,16 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) connect(ctx context.Context) error {
 	dialOpts := []grpc.DialOption{grpc.WithBlock()}
 
-	// Transport security (mTLS preferred; falls back to insecure for dev)
-	if a.cfg.TLSCertFile != "" && a.cfg.TLSKeyFile != "" && a.cfg.TLSCAFile != "" {
-		creds, err := tlsconfig.AgentCredentials(a.cfg.TLSCertFile, a.cfg.TLSKeyFile, a.cfg.TLSCAFile)
+	// Transport encryption — verify server cert if CA provided, else use system CAs
+	if a.cfg.TLSCAFile != "" {
+		creds, err := tlsconfig.AgentCredentials(a.cfg.TLSCAFile)
 		if err != nil {
-			return fmt.Errorf("building mTLS credentials: %w", err)
+			return fmt.Errorf("building TLS credentials: %w", err)
 		}
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
-		a.log.Info("mTLS transport enabled")
+		a.log.Info("TLS enabled with custom CA")
 	} else {
-		a.log.Warn("mTLS not configured — using insecure transport (not recommended for production)")
+		a.log.Warn("TLS not configured — using insecure transport (dev only)")
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 

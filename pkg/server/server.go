@@ -27,11 +27,11 @@ func New(store *Store, validator *auth.Validator, log *zap.Logger) *Server {
 	return &Server{store: store, validator: validator, log: log}
 }
 
-// TLSConfig holds optional mTLS configuration for the server.
+// TLSConfig holds TLS configuration for the server.
+// Authentication is handled by OIDC — only server cert/key needed.
 type TLSConfig struct {
 	CertFile string
 	KeyFile  string
-	CAFile   string
 }
 
 func (s *Server) Run(addr string, tls *TLSConfig) error {
@@ -42,15 +42,15 @@ func (s *Server) Run(addr string, tls *TLSConfig) error {
 
 	var serverOpts []grpc.ServerOption
 	if tls != nil && tls.CertFile != "" {
-		creds, err := tlsconfig.ServerCredentials(tls.CertFile, tls.KeyFile, tls.CAFile)
+		creds, err := tlsconfig.ServerCredentials(tls.CertFile, tls.KeyFile)
 		if err != nil {
-			return fmt.Errorf("building mTLS credentials: %w", err)
+			return fmt.Errorf("building TLS credentials: %w", err)
 		}
 		serverOpts = append(serverOpts, grpc.Creds(creds))
-		s.log.Info("mTLS transport enabled on server")
+		s.log.Info("TLS enabled on server")
 	} else {
 		serverOpts = append(serverOpts, grpc.Creds(insecure.NewCredentials()))
-		s.log.Warn("mTLS not configured — running insecure transport (not recommended for production)")
+		s.log.Warn("TLS not configured — running insecure (dev only)")
 	}
 
 	// Wire OIDC token validation interceptors if a validator is configured
