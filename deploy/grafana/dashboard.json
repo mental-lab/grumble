@@ -2,7 +2,7 @@
   "title": "Grumble — Image Catalog & Vulnerability Hotspots",
   "uid": "grumble-hotspots",
   "schemaVersion": 38,
-  "version": 2,
+  "version": 3,
   "refresh": "5m",
   "tags": ["security", "grumble", "grype"],
   "templating": {
@@ -18,16 +18,16 @@
       },
       {
         "name": "severity_filter",
-        "label": "Min Severity",
+        "label": "Severity",
         "type": "custom",
         "current": { "value": "", "text": "All" },
         "hide": 0,
         "options": [
-          { "value": "",         "text": "All",      "selected": true },
-          { "value": "Critical", "text": "Critical",  "selected": false },
-          { "value": "High",     "text": "High",      "selected": false },
-          { "value": "Medium",   "text": "Medium",    "selected": false },
-          { "value": "Low",      "text": "Low",       "selected": false }
+          { "value": "",         "text": "All",     "selected": true },
+          { "value": "Critical", "text": "Critical", "selected": false },
+          { "value": "High",     "text": "High",     "selected": false },
+          { "value": "Medium",   "text": "Medium",   "selected": false },
+          { "value": "Low",      "text": "Low",      "selected": false }
         ],
         "query": "All,Critical,High,Medium,Low"
       },
@@ -60,13 +60,13 @@
           }
         }
       },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/hotspots",
-          "fields": [{ "name": "critical", "type": "number" }]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [{ "selector": "critical", "text": "critical", "type": "number" }]
+      }]
     },
     {
       "id": 2,
@@ -85,13 +85,13 @@
           }
         }
       },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/hotspots",
-          "fields": [{ "name": "high", "type": "number" }]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [{ "selector": "high", "text": "high", "type": "number" }]
+      }]
     },
     {
       "id": 3,
@@ -99,51 +99,27 @@
       "type": "stat",
       "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
       "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/clusters",
-          "fields": [{ "name": "cluster_id", "type": "string" }]
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "title": "Images Pending Scan",
-      "type": "stat",
-      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["count"] } },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "yellow", "value": 1 }
-            ]
-          }
-        }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/images?scan_status=pending",
-          "fields": [{ "name": "image", "type": "string" }]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/clusters", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [{ "selector": "cluster_id", "text": "cluster_id", "type": "string" }]
+      }]
     },
     {
       "id": 11,
-      "title": "Total Images Scanned",
+      "title": "Images Scanned",
       "type": "stat",
-      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
       "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/hotspots",
-          "fields": [{ "name": "image", "type": "string" }]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [{ "selector": "image", "text": "image", "type": "string" }]
+      }]
     },
     {
       "id": 4,
@@ -151,9 +127,7 @@
       "description": "Images ranked by risk score = (critical×10 + high×3 + medium) × pod count",
       "type": "table",
       "gridPos": { "x": 0, "y": 4, "w": 24, "h": 10 },
-      "options": {
-        "sortBy": [{ "displayName": "risk_score", "desc": true }]
-      },
+      "options": { "sortBy": [{ "displayName": "risk_score", "desc": true }] },
       "fieldConfig": {
         "overrides": [
           {
@@ -182,72 +156,67 @@
           }
         ]
       },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/hotspots",
-          "fields": [
-            { "name": "image",      "type": "string" },
-            { "name": "cluster_id", "type": "string" },
-            { "name": "critical",   "type": "number" },
-            { "name": "high",       "type": "number" },
-            { "name": "medium",     "type": "number" },
-            { "name": "low",        "type": "number" },
-            { "name": "pod_count",  "type": "number" },
-            { "name": "risk_score", "type": "number" },
-            { "name": "scanned_at", "type": "string" }
-          ]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "image",      "text": "image",      "type": "string" },
+          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
+          { "selector": "critical",   "text": "critical",   "type": "number" },
+          { "selector": "high",       "text": "high",       "type": "number" },
+          { "selector": "medium",     "text": "medium",     "type": "number" },
+          { "selector": "low",        "text": "low",        "type": "number" },
+          { "selector": "pod_count",  "text": "pod_count",  "type": "number" },
+          { "selector": "risk_score", "text": "risk_score", "type": "number" },
+          { "selector": "scanned_at", "text": "scanned_at", "type": "string" }
+        ]
+      }]
     },
     {
       "id": 5,
-      "title": "Per-Cluster Critical CVE Count",
+      "title": "Critical CVEs per Cluster",
       "type": "bargauge",
       "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
-      "options": {
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/clusters",
-          "fields": [
-            { "name": "cluster_id", "type": "string" },
-            { "name": "critical",   "type": "number" }
-          ]
-        }
-      ]
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/clusters", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
+          { "selector": "critical",   "text": "critical",   "type": "number" }
+        ]
+      }]
     },
     {
       "id": 6,
       "title": "Pod Inventory",
       "type": "table",
       "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/inventory",
-          "fields": [
-            { "name": "cluster_id", "type": "string" },
-            { "name": "namespace",  "type": "string" },
-            { "name": "pod_name",   "type": "string" },
-            { "name": "image",      "type": "string" },
-            { "name": "phase",      "type": "string" }
-          ]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/inventory", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
+          { "selector": "namespace",  "text": "namespace",  "type": "string" },
+          { "selector": "pod_name",   "text": "pod_name",   "type": "string" },
+          { "selector": "image",      "text": "image",      "type": "string" },
+          { "selector": "phase",      "text": "phase",      "type": "string" }
+        ]
+      }]
     },
     {
       "id": 8,
       "title": "Image Catalog — All Running Images",
-      "description": "Every unique image observed across all clusters with scan status and vulnerability counts.",
+      "description": "Every unique image observed across all clusters with pod counts and vuln summary.",
       "type": "table",
       "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
-      "options": {
-        "sortBy": [{ "displayName": "total_vulns", "desc": true }]
-      },
+      "options": { "sortBy": [{ "displayName": "total_vulns", "desc": true }] },
       "fieldConfig": {
         "overrides": [
           {
@@ -279,34 +248,32 @@
           }
         ]
       },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/images",
-          "fields": [
-            { "name": "image",           "type": "string" },
-            { "name": "cluster_id",      "type": "string" },
-            { "name": "pod_count",       "type": "number" },
-            { "name": "namespaces",      "type": "string" },
-            { "name": "critical",        "type": "number" },
-            { "name": "high",            "type": "number" },
-            { "name": "medium",          "type": "number" },
-            { "name": "total_vulns",     "type": "number" },
-            { "name": "scan_status",     "type": "string" },
-            { "name": "last_seen",       "type": "string" }
-          ]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/images", "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "image",       "text": "image",       "type": "string" },
+          { "selector": "cluster_id",  "text": "cluster_id",  "type": "string" },
+          { "selector": "pod_count",   "text": "pod_count",   "type": "number" },
+          { "selector": "namespaces",  "text": "namespaces",  "type": "string" },
+          { "selector": "critical",    "text": "critical",    "type": "number" },
+          { "selector": "high",        "text": "high",        "type": "number" },
+          { "selector": "medium",      "text": "medium",      "type": "number" },
+          { "selector": "total_vulns", "text": "total_vulns", "type": "number" },
+          { "selector": "scan_status", "text": "scan_status", "type": "string" },
+          { "selector": "last_seen",   "text": "last_seen",   "type": "string" }
+        ]
+      }]
     },
     {
       "id": 10,
       "title": "Vulnerability Detail — CVEs by Image",
-      "description": "Use the Image filter at the top to drill into a specific image. Shows each CVE with package name, version, severity, and whether a fix is available.",
+      "description": "Use the Image filter at the top to drill into a specific image. Severity filter narrows by level.",
       "type": "table",
       "gridPos": { "x": 0, "y": 32, "w": 24, "h": 12 },
-      "options": {
-        "sortBy": [{ "displayName": "severity", "desc": false }]
-      },
+      "options": { "sortBy": [{ "displayName": "severity", "desc": false }] },
       "fieldConfig": {
         "overrides": [
           {
@@ -314,26 +281,17 @@
             "properties": [
               { "id": "custom.width", "value": 100 },
               { "id": "mappings", "value": [
-                { "type": "value", "options": { "Critical": { "color": "red",    "text": "🔴 Critical" } } },
-                { "type": "value", "options": { "High":     { "color": "orange", "text": "🟠 High"     } } },
-                { "type": "value", "options": { "Medium":   { "color": "yellow", "text": "🟡 Medium"   } } },
-                { "type": "value", "options": { "Low":      { "color": "blue",   "text": "🔵 Low"      } } }
+                { "type": "value", "options": { "Critical": { "color": "red",    "text": "Critical" } } },
+                { "type": "value", "options": { "High":     { "color": "orange", "text": "High"     } } },
+                { "type": "value", "options": { "Medium":   { "color": "yellow", "text": "Medium"   } } },
+                { "type": "value", "options": { "Low":      { "color": "blue",   "text": "Low"      } } }
               ]},
               { "id": "custom.displayMode", "value": "color-background" }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "fixed_in" },
-            "properties": [
-              { "id": "custom.width", "value": 120 },
-              { "id": "mappings", "value": [
-                { "type": "special", "options": { "match": "null", "result": { "color": "red", "text": "no fix" } } }
-              ]}
-            ]
-          },
-          {
             "matcher": { "id": "byName", "options": "vuln_id" },
-            "properties": [{ "id": "custom.width", "value": 140 }]
+            "properties": [{ "id": "custom.width", "value": 150 }]
           },
           {
             "matcher": { "id": "byName", "options": "description" },
@@ -341,46 +299,46 @@
           }
         ]
       },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/vulns?image=${image_filter}&severity=${severity_filter}",
-          "fields": [
-            { "name": "vuln_id",      "type": "string" },
-            { "name": "severity",     "type": "string" },
-            { "name": "package_name", "type": "string" },
-            { "name": "version",      "type": "string" },
-            { "name": "fixed_in",     "type": "string" },
-            { "name": "image",        "type": "string" },
-            { "name": "description",  "type": "string" }
-          ]
-        }
-      ]
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/vulns?image=${image_filter}&severity=${severity_filter}",
+        "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "vuln_id",      "text": "vuln_id",      "type": "string" },
+          { "selector": "severity",     "text": "severity",     "type": "string" },
+          { "selector": "package_name", "text": "package_name", "type": "string" },
+          { "selector": "version",      "text": "version",      "type": "string" },
+          { "selector": "fixed_in",     "text": "fixed_in",     "type": "string" },
+          { "selector": "image",        "text": "image",        "type": "string" },
+          { "selector": "description",  "text": "description",  "type": "string" }
+        ]
+      }]
     },
     {
       "id": 9,
-      "title": "Package / Dependency Search — \"Which images use X?\"",
-      "description": "Search by package name (e.g. openssl, log4j). Shows every image running that package and how many pods are affected.",
+      "title": "Package / Dependency Search",
+      "description": "Search by package name (e.g. openssl, curl). Shows every image running that package.",
       "type": "table",
       "gridPos": { "x": 0, "y": 44, "w": 24, "h": 9 },
-      "options": {
-        "sortBy": [{ "displayName": "pod_count", "desc": true }]
-      },
-      "targets": [
-        {
-          "datasource": { "type": "marcusolsson-json-datasource", "uid": "grumble-api" },
-          "path": "/packages?name=${package_search}",
-          "fields": [
-            { "name": "name",            "type": "string" },
-            { "name": "version",         "type": "string" },
-            { "name": "type",            "type": "string" },
-            { "name": "image",           "type": "string" },
-            { "name": "cluster_id",      "type": "string" },
-            { "name": "pod_count",       "type": "number" },
-            { "name": "license",         "type": "string" }
-          ]
-        }
-      ]
+      "options": { "sortBy": [{ "displayName": "pod_count", "desc": true }] },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
+        "type": "json", "parser": "backend", "source": "url", "format": "table",
+        "url": "/packages?name=${package_search}",
+        "url_options": { "method": "GET" }, "root_selector": "",
+        "columns": [
+          { "selector": "name",       "text": "name",       "type": "string" },
+          { "selector": "version",    "text": "version",    "type": "string" },
+          { "selector": "type",       "text": "type",       "type": "string" },
+          { "selector": "image",      "text": "image",      "type": "string" },
+          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
+          { "selector": "pod_count",  "text": "pod_count",  "type": "number" },
+          { "selector": "license",    "text": "license",    "type": "string" }
+        ]
+      }]
     }
   ]
 }
