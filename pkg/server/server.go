@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/mental-lab/grumble/pkg/auth"
 	proto "github.com/mental-lab/grumble/pkg/proto"
 	"github.com/mental-lab/grumble/pkg/tlsconfig"
 )
@@ -17,12 +18,13 @@ import (
 // from agents across all clusters and stores them for Grafana to query.
 type Server struct {
 	proto.UnimplementedGrumbleServerServer
-	store *Store
-	log   *zap.Logger
+	store     *Store
+	validator *auth.Validator // nil = auth disabled (dev mode)
+	log       *zap.Logger
 }
 
-func New(store *Store, log *zap.Logger) *Server {
-	return &Server{store: store, log: log}
+func New(store *Store, validator *auth.Validator, log *zap.Logger) *Server {
+	return &Server{store: store, validator: validator, log: log}
 }
 
 // TLSConfig holds optional mTLS configuration for the server.
@@ -45,10 +47,21 @@ func (s *Server) Run(addr string, tls *TLSConfig) error {
 			return fmt.Errorf("building mTLS credentials: %w", err)
 		}
 		serverOpts = append(serverOpts, grpc.Creds(creds))
-		s.log.Info("mTLS enabled on server")
+		s.log.Info("mTLS transport enabled on server")
 	} else {
 		serverOpts = append(serverOpts, grpc.Creds(insecure.NewCredentials()))
-		s.log.Warn("mTLS not configured — running insecure (not recommended for production)")
+		s.log.Warn("mTLS not configured — running insecure transport (not recommended for production)")
+	}
+
+	// Wire OIDC token validation interceptors if a validator is configured
+	if s.validator != nil {
+		serverOpts = append(serverOpts,
+			grpc.UnaryInterceptor(s.validator.UnaryInterceptor()),
+			grpc.StreamInterceptor(s.validator.StreamInterceptor()),
+		)
+		s.log.Info("OIDC token validation enabled")
+	} else {
+		s.log.Warn("OIDC auth disabled — all agents accepted (dev mode only)")
 	}
 
 	grpcServer := grpc.NewServer(serverOpts...)
