@@ -21,6 +21,7 @@ func main() {
 		dbPath   string
 		tlsCert  string
 		tlsKey   string
+		devMode  bool
 	)
 
 	cmd := &cobra.Command{
@@ -35,7 +36,11 @@ func main() {
 				return err
 			}
 
-			srv := server.New(store, log)
+			if devMode {
+				log.Warn("--dev mode enabled: OIDC auth disabled, all agents accepted")
+			}
+
+			srv := server.New(store, nil, log) // pass validator=nil in dev mode
 			api := server.NewAPI(store, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -76,6 +81,7 @@ func main() {
 	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
 	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Server TLS certificate file (enables TLS)")
 	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Server TLS key file")
+	cmd.Flags().BoolVar(&devMode, "dev", false, "Disable OIDC auth for local development")
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
