@@ -1,17 +1,23 @@
 {
-  "title": "Grumble — Image Catalog & Vulnerability Hotspots",
+  "title": "Grumble \u2014 Image Catalog & Vulnerability Hotspots",
   "uid": "grumble-hotspots",
   "schemaVersion": 38,
-  "version": 3,
+  "version": 4,
   "refresh": "5m",
-  "tags": ["security", "grumble", "grype"],
+  "tags": [
+    "security",
+    "grumble",
+    "grype"
+  ],
   "templating": {
     "list": [
       {
         "name": "image_filter",
         "label": "Image",
         "type": "textbox",
-        "current": { "value": "" },
+        "current": {
+          "value": ""
+        },
         "hide": 0,
         "options": [],
         "query": ""
@@ -20,14 +26,37 @@
         "name": "severity_filter",
         "label": "Severity",
         "type": "custom",
-        "current": { "value": "", "text": "All" },
+        "current": {
+          "value": "",
+          "text": "All"
+        },
         "hide": 0,
         "options": [
-          { "value": "",         "text": "All",     "selected": true },
-          { "value": "Critical", "text": "Critical", "selected": false },
-          { "value": "High",     "text": "High",     "selected": false },
-          { "value": "Medium",   "text": "Medium",   "selected": false },
-          { "value": "Low",      "text": "Low",      "selected": false }
+          {
+            "value": "",
+            "text": "All",
+            "selected": true
+          },
+          {
+            "value": "Critical",
+            "text": "Critical",
+            "selected": false
+          },
+          {
+            "value": "High",
+            "text": "High",
+            "selected": false
+          },
+          {
+            "value": "Medium",
+            "text": "Medium",
+            "selected": false
+          },
+          {
+            "value": "Low",
+            "text": "Low",
+            "selected": false
+          }
         ],
         "query": "All,Critical,High,Medium,Low"
       },
@@ -35,7 +64,9 @@
         "name": "package_search",
         "label": "Package Name",
         "type": "textbox",
-        "current": { "value": "" },
+        "current": {
+          "value": ""
+        },
         "hide": 0,
         "options": [],
         "query": ""
@@ -47,298 +78,923 @@
       "id": 1,
       "title": "Total Critical CVEs",
       "type": "stat",
-      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 10 }
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
             ]
           }
         }
       },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [{ "selector": "critical", "text": "critical", "type": "number" }]
-      }]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/stats",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "critical_total",
+              "text": "critical_total",
+              "type": "number"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 2,
       "title": "Total High CVEs",
       "type": "stat",
-      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "orange", "value": 5 },
-              { "color": "red", "value": 25 }
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 25
+              }
             ]
           }
         }
       },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [{ "selector": "high", "text": "high", "type": "number" }]
-      }]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/stats",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "high_total",
+              "text": "high_total",
+              "type": "number"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 3,
       "title": "Clusters Reporting",
       "type": "stat",
-      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/clusters", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [{ "selector": "cluster_id", "text": "cluster_id", "type": "string" }]
-      }]
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/stats",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "clusters",
+              "text": "clusters",
+              "type": "number"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 11,
       "title": "Images Scanned",
       "type": "stat",
-      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
-      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["count"] } },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [{ "selector": "image", "text": "image", "type": "string" }]
-      }]
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/stats",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "images_scanned",
+              "text": "images_scanned",
+              "type": "number"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 4,
       "title": "Top Vulnerability Hotspots",
-      "description": "Images ranked by risk score = (critical×10 + high×3 + medium) × pod count",
+      "description": "Images ranked by risk score = (critical\u00d710 + high\u00d73 + medium) \u00d7 pod count",
       "type": "table",
-      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 10 },
-      "options": { "sortBy": [{ "displayName": "risk_score", "desc": true }] },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "risk_score",
+            "desc": true
+          }
+        ]
+      },
       "fieldConfig": {
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "critical" },
+            "matcher": {
+              "id": "byName",
+              "options": "critical"
+            },
             "properties": [
-              { "id": "custom.width", "value": 80 },
-              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } },
-              { "id": "custom.displayMode", "value": "color-background" }
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "high" },
+            "matcher": {
+              "id": "byName",
+              "options": "high"
+            },
             "properties": [
-              { "id": "custom.width", "value": 80 },
-              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 1 }] } },
-              { "id": "custom.displayMode", "value": "color-background" }
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "risk_score" },
+            "matcher": {
+              "id": "byName",
+              "options": "risk_score"
+            },
             "properties": [
-              { "id": "custom.width", "value": 120 },
-              { "id": "custom.displayMode", "value": "lcd-gauge" },
-              { "id": "max", "value": 1000 }
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "lcd-gauge"
+              },
+              {
+                "id": "max",
+                "value": 1000
+              }
             ]
           }
         ]
       },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/hotspots", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "image",      "text": "image",      "type": "string" },
-          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
-          { "selector": "critical",   "text": "critical",   "type": "number" },
-          { "selector": "high",       "text": "high",       "type": "number" },
-          { "selector": "medium",     "text": "medium",     "type": "number" },
-          { "selector": "low",        "text": "low",        "type": "number" },
-          { "selector": "pod_count",  "text": "pod_count",  "type": "number" },
-          { "selector": "risk_score", "text": "risk_score", "type": "number" },
-          { "selector": "scanned_at", "text": "scanned_at", "type": "string" }
-        ]
-      }]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/hotspots",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
+            },
+            {
+              "selector": "cluster_id",
+              "text": "cluster_id",
+              "type": "string"
+            },
+            {
+              "selector": "critical",
+              "text": "critical",
+              "type": "number"
+            },
+            {
+              "selector": "high",
+              "text": "high",
+              "type": "number"
+            },
+            {
+              "selector": "medium",
+              "text": "medium",
+              "type": "number"
+            },
+            {
+              "selector": "low",
+              "text": "low",
+              "type": "number"
+            },
+            {
+              "selector": "pod_count",
+              "text": "pod_count",
+              "type": "number"
+            },
+            {
+              "selector": "risk_score",
+              "text": "risk_score",
+              "type": "number"
+            },
+            {
+              "selector": "scanned_at",
+              "text": "scanned_at",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 5,
       "title": "Critical CVEs per Cluster",
       "type": "bargauge",
-      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
-      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/clusters", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
-          { "selector": "critical",   "text": "critical",   "type": "number" }
-        ]
-      }]
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/clusters",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "cluster_id",
+              "text": "cluster_id",
+              "type": "string"
+            },
+            {
+              "selector": "critical",
+              "text": "critical",
+              "type": "number"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 6,
       "title": "Pod Inventory",
       "type": "table",
-      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/inventory", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
-          { "selector": "namespace",  "text": "namespace",  "type": "string" },
-          { "selector": "pod_name",   "text": "pod_name",   "type": "string" },
-          { "selector": "image",      "text": "image",      "type": "string" },
-          { "selector": "phase",      "text": "phase",      "type": "string" }
-        ]
-      }]
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/inventory",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "cluster_id",
+              "text": "cluster_id",
+              "type": "string"
+            },
+            {
+              "selector": "namespace",
+              "text": "namespace",
+              "type": "string"
+            },
+            {
+              "selector": "pod_name",
+              "text": "pod_name",
+              "type": "string"
+            },
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
+            },
+            {
+              "selector": "phase",
+              "text": "phase",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 8,
-      "title": "Image Catalog — All Running Images",
+      "title": "Image Catalog \u2014 All Running Images",
       "description": "Every unique image observed across all clusters with pod counts and vuln summary.",
       "type": "table",
-      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
-      "options": { "sortBy": [{ "displayName": "total_vulns", "desc": true }] },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "total_vulns",
+            "desc": true
+          }
+        ]
+      },
       "fieldConfig": {
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "scan_status" },
+            "matcher": {
+              "id": "byName",
+              "options": "scan_status"
+            },
             "properties": [
-              { "id": "custom.width", "value": 110 },
-              { "id": "mappings", "value": [
-                { "type": "value", "options": { "scanned": { "color": "green", "text": "✓ scanned" } } },
-                { "type": "value", "options": { "pending": { "color": "yellow", "text": "⏳ pending" } } }
-              ]},
-              { "id": "custom.displayMode", "value": "color-background" }
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "scanned": {
+                        "color": "green",
+                        "text": "\u2713 scanned"
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "pending": {
+                        "color": "yellow",
+                        "text": "\u23f3 pending"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "critical" },
+            "matcher": {
+              "id": "byName",
+              "options": "critical"
+            },
             "properties": [
-              { "id": "custom.width", "value": 80 },
-              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } },
-              { "id": "custom.displayMode", "value": "color-background" }
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "high" },
+            "matcher": {
+              "id": "byName",
+              "options": "high"
+            },
             "properties": [
-              { "id": "custom.width", "value": 80 },
-              { "id": "thresholds", "value": { "steps": [{ "color": "green", "value": 0 }, { "color": "orange", "value": 1 }] } },
-              { "id": "custom.displayMode", "value": "color-background" }
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
             ]
           }
         ]
       },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/images", "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "image",       "text": "image",       "type": "string" },
-          { "selector": "cluster_id",  "text": "cluster_id",  "type": "string" },
-          { "selector": "pod_count",   "text": "pod_count",   "type": "number" },
-          { "selector": "namespaces",  "text": "namespaces",  "type": "string" },
-          { "selector": "critical",    "text": "critical",    "type": "number" },
-          { "selector": "high",        "text": "high",        "type": "number" },
-          { "selector": "medium",      "text": "medium",      "type": "number" },
-          { "selector": "total_vulns", "text": "total_vulns", "type": "number" },
-          { "selector": "scan_status", "text": "scan_status", "type": "string" },
-          { "selector": "last_seen",   "text": "last_seen",   "type": "string" }
-        ]
-      }]
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/images",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
+            },
+            {
+              "selector": "cluster_id",
+              "text": "cluster_id",
+              "type": "string"
+            },
+            {
+              "selector": "pod_count",
+              "text": "pod_count",
+              "type": "number"
+            },
+            {
+              "selector": "namespaces",
+              "text": "namespaces",
+              "type": "string"
+            },
+            {
+              "selector": "critical",
+              "text": "critical",
+              "type": "number"
+            },
+            {
+              "selector": "high",
+              "text": "high",
+              "type": "number"
+            },
+            {
+              "selector": "medium",
+              "text": "medium",
+              "type": "number"
+            },
+            {
+              "selector": "total_vulns",
+              "text": "total_vulns",
+              "type": "number"
+            },
+            {
+              "selector": "scan_status",
+              "text": "scan_status",
+              "type": "string"
+            },
+            {
+              "selector": "last_seen",
+              "text": "last_seen",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 10,
-      "title": "Vulnerability Detail — CVEs by Image",
+      "title": "Vulnerability Detail \u2014 CVEs by Image",
       "description": "Use the Image filter at the top to drill into a specific image. Severity filter narrows by level.",
       "type": "table",
-      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 12 },
-      "options": { "sortBy": [{ "displayName": "severity", "desc": false }] },
-      "fieldConfig": {
-        "overrides": [
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 12
+      },
+      "options": {
+        "sortBy": [
           {
-            "matcher": { "id": "byName", "options": "severity" },
-            "properties": [
-              { "id": "custom.width", "value": 100 },
-              { "id": "mappings", "value": [
-                { "type": "value", "options": { "Critical": { "color": "red",    "text": "Critical" } } },
-                { "type": "value", "options": { "High":     { "color": "orange", "text": "High"     } } },
-                { "type": "value", "options": { "Medium":   { "color": "yellow", "text": "Medium"   } } },
-                { "type": "value", "options": { "Low":      { "color": "blue",   "text": "Low"      } } }
-              ]},
-              { "id": "custom.displayMode", "value": "color-background" }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "vuln_id" },
-            "properties": [{ "id": "custom.width", "value": 150 }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "description" },
-            "properties": [{ "id": "custom.width", "value": 400 }]
+            "displayName": "severity",
+            "desc": false
           }
         ]
       },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/vulns?image=${image_filter}&severity=${severity_filter}",
-        "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "vuln_id",      "text": "vuln_id",      "type": "string" },
-          { "selector": "severity",     "text": "severity",     "type": "string" },
-          { "selector": "package_name", "text": "package_name", "type": "string" },
-          { "selector": "version",      "text": "version",      "type": "string" },
-          { "selector": "fixed_in",     "text": "fixed_in",     "type": "string" },
-          { "selector": "image",        "text": "image",        "type": "string" },
-          { "selector": "description",  "text": "description",  "type": "string" }
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Critical": {
+                        "color": "red",
+                        "text": "Critical"
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "High": {
+                        "color": "orange",
+                        "text": "High"
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "Medium": {
+                        "color": "yellow",
+                        "text": "Medium"
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "Low": {
+                        "color": "blue",
+                        "text": "Low"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vuln_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "description"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 400
+              }
+            ]
+          }
         ]
-      }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/vulns?image=${image_filter}&severity=${severity_filter}",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "vuln_id",
+              "text": "vuln_id",
+              "type": "string"
+            },
+            {
+              "selector": "severity",
+              "text": "severity",
+              "type": "string"
+            },
+            {
+              "selector": "package_name",
+              "text": "package_name",
+              "type": "string"
+            },
+            {
+              "selector": "version",
+              "text": "version",
+              "type": "string"
+            },
+            {
+              "selector": "fixed_in",
+              "text": "fixed_in",
+              "type": "string"
+            },
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
+            },
+            {
+              "selector": "description",
+              "text": "description",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 9,
       "title": "Package / Dependency Search",
       "description": "Search by package name (e.g. openssl, curl). Shows every image running that package.",
       "type": "table",
-      "gridPos": { "x": 0, "y": 44, "w": 24, "h": 9 },
-      "options": { "sortBy": [{ "displayName": "pod_count", "desc": true }] },
-      "targets": [{
-        "refId": "A",
-        "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "grumble-api" },
-        "type": "json", "parser": "backend", "source": "url", "format": "table",
-        "url": "/packages?name=${package_search}",
-        "url_options": { "method": "GET" }, "root_selector": "",
-        "columns": [
-          { "selector": "name",       "text": "name",       "type": "string" },
-          { "selector": "version",    "text": "version",    "type": "string" },
-          { "selector": "type",       "text": "type",       "type": "string" },
-          { "selector": "image",      "text": "image",      "type": "string" },
-          { "selector": "cluster_id", "text": "cluster_id", "type": "string" },
-          { "selector": "pod_count",  "text": "pod_count",  "type": "number" },
-          { "selector": "license",    "text": "license",    "type": "string" }
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 9
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "pod_count",
+            "desc": true
+          }
         ]
-      }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/packages?name=${package_search}",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "name",
+              "text": "name",
+              "type": "string"
+            },
+            {
+              "selector": "version",
+              "text": "version",
+              "type": "string"
+            },
+            {
+              "selector": "type",
+              "text": "type",
+              "type": "string"
+            },
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
+            },
+            {
+              "selector": "cluster_id",
+              "text": "cluster_id",
+              "type": "string"
+            },
+            {
+              "selector": "pod_count",
+              "text": "pod_count",
+              "type": "number"
+            },
+            {
+              "selector": "license",
+              "text": "license",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

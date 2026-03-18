@@ -21,6 +21,7 @@ func NewAPI(store *Store, log *zap.Logger) *API {
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", a.health)
+	mux.HandleFunc("/stats", a.stats)
 	mux.HandleFunc("/hotspots", a.hotspots)
 	mux.HandleFunc("/clusters", a.clusters)
 	mux.HandleFunc("/inventory", a.inventory)
@@ -106,6 +107,36 @@ func (a *API) packages(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+// stats returns a single flat JSON object with aggregate counts for stat panels.
+func (a *API) stats(w http.ResponseWriter, r *http.Request) {
+	var result struct {
+		Clusters      int `json:"clusters"`
+		ImagesScanned int `json:"images_scanned"`
+		CriticalTotal int `json:"critical_total"`
+		HighTotal     int `json:"high_total"`
+		MediumTotal   int `json:"medium_total"`
+		PodsTracked   int `json:"pods_tracked"`
+	}
+
+	a.store.db.QueryRow(`SELECT COUNT(DISTINCT cluster_id) FROM scan_results`).Scan(&result.Clusters)
+
+	a.store.db.QueryRow(`
+		WITH latest AS (SELECT image, cluster_id, MAX(scanned_at) AS max_at FROM scan_results GROUP BY image, cluster_id)
+		SELECT COUNT(*) FROM scan_results s JOIN latest ON s.image=latest.image AND s.cluster_id=latest.cluster_id AND s.scanned_at=latest.max_at
+	`).Scan(&result.ImagesScanned)
+
+	a.store.db.QueryRow(`
+		WITH latest AS (SELECT image, cluster_id, MAX(scanned_at) AS max_at FROM scan_results GROUP BY image, cluster_id)
+		SELECT COALESCE(SUM(s.critical),0), COALESCE(SUM(s.high),0), COALESCE(SUM(s.medium),0)
+		FROM scan_results s JOIN latest ON s.image=latest.image AND s.cluster_id=latest.cluster_id AND s.scanned_at=latest.max_at
+	`).Scan(&result.CriticalTotal, &result.HighTotal, &result.MediumTotal)
+
+	a.store.db.QueryRow(`SELECT COUNT(*) FROM pod_inventory`).Scan(&result.PodsTracked)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 // vulns returns individual vulnerability details for an image.
