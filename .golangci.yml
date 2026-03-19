@@ -1,3 +1,5 @@
+version: "2"
+
 linters:
   enable:
     - errcheck
@@ -6,12 +8,9 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-  disable:
-    - depguard
-
-linters-settings:
-  govet:
-    enable-all: false
+  settings:
+    govet:
+      enable-all: false
 
 issues:
   exclude-rules:
