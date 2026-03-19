@@ -12,8 +12,8 @@ linters:
       enable-all: false
   exclusions:
     rules:
-      # Pre-existing: api.go intentionally ignores scan/encode errors in handlers
-      - path: pkg/server/api\.go
+      # Pre-existing: server ignores best-effort exec/rollback errors
+      - path: pkg/server/
         linters: [errcheck]
       # Pre-existing: informer handler registration error is non-fatal
       - path: pkg/agent/watcher\.go

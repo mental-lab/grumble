@@ -92,7 +92,7 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) connect(ctx context.Context) error {
-	dialOpts := []grpc.DialOption{grpc.WithBlock()}
+	var dialOpts []grpc.DialOption
 
 	// Transport encryption — verify server cert if CA provided, else use system CAs
 	if a.cfg.TLSCAFile != "" {
@@ -116,7 +116,7 @@ func (a *Agent) connect(ctx context.Context) error {
 		a.log.Warn("OIDC auth disabled (dev mode)")
 	}
 
-	conn, err := grpc.DialContext(ctx, a.cfg.ServerAddr, dialOpts...)
+	conn, err := grpc.NewClient(a.cfg.ServerAddr, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("dialing server: %w", err)
 	}
