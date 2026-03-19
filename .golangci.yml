@@ -11,10 +11,9 @@ linters:
   settings:
     govet:
       enable-all: false
-
-issues:
-  exclude-rules:
-    # Ignore errors on rows.Scan in API handlers — handled by empty result
-    - path: pkg/server/api.go
-      linters: [errcheck]
-      text: "rows.Scan"
+  exclusions:
+    rules:
+      # Ignore errors on rows.Scan in API handlers — handled by empty result
+      - path: pkg/server/api.go
+        linters: [errcheck]
+        text: "rows.Scan"
