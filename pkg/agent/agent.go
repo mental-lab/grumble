@@ -53,6 +53,10 @@ type Config struct {
 
 	// Dev disables TLS and OIDC authentication. For local testing only.
 	Dev bool
+
+	// ScanInterval sets how often all known images are re-scanned.
+	// Set to 0 to disable periodic re-scanning (event-driven only).
+	ScanInterval time.Duration
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
@@ -152,7 +156,16 @@ func (a *Agent) connect(ctx context.Context) error {
 		return fmt.Errorf("sending registration: %w", err)
 	}
 
-	// Process pod events: report inventory and scan images
+	// Optional periodic re-scan ticker
+	var tickCh <-chan time.Time
+	if a.cfg.ScanInterval > 0 {
+		ticker := time.NewTicker(a.cfg.ScanInterval)
+		defer ticker.Stop()
+		tickCh = ticker.C
+		a.log.Info("periodic re-scan enabled", zap.Duration("interval", a.cfg.ScanInterval))
+	}
+
+	// Process pod events and periodic re-scans
 	for {
 		select {
 		case <-ctx.Done():
@@ -166,6 +179,17 @@ func (a *Agent) connect(ctx context.Context) error {
 			}
 			for _, c := range event.Pod.Spec.Containers {
 				go a.scanAndSend(ctx, stream, c.Image)
+			}
+		case <-tickCh:
+			a.log.Info("periodic re-scan triggered", zap.Duration("interval", a.cfg.ScanInterval))
+			seen := map[string]bool{}
+			for _, pod := range a.watcher.Pods() {
+				for _, c := range pod.Spec.Containers {
+					if !seen[c.Image] {
+						seen[c.Image] = true
+						go a.scanAndSend(ctx, stream, c.Image)
+					}
+				}
 			}
 		}
 	}

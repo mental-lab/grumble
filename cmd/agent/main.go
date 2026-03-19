@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -17,14 +18,15 @@ import (
 
 func main() {
 	var (
-		serverAddr  string
-		clusterID   string
-		agentID     string
-		grypeDBDir  string
-		kubeconfig  string
-		tlsCA       string
-		saTokenPath string
-		dev         bool
+		serverAddr   string
+		clusterID    string
+		agentID      string
+		grypeDBDir   string
+		kubeconfig   string
+		tlsCA        string
+		saTokenPath  string
+		dev          bool
+		scanInterval time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -52,13 +54,14 @@ func main() {
 			watcher := agent.NewWatcher(client, log)
 
 			a := agent.New(agent.Config{
-				AgentID:     agentID,
-				ClusterID:   clusterID,
-				ServerAddr:  serverAddr,
-				GrypeDBDir:  grypeDBDir,
-				TLSCAFile:   tlsCA,
-				SATokenPath: saTokenPath,
-				Dev:         dev,
+				AgentID:      agentID,
+				ClusterID:    clusterID,
+				ServerAddr:   serverAddr,
+				GrypeDBDir:   grypeDBDir,
+				TLSCAFile:    tlsCA,
+				SATokenPath:  saTokenPath,
+				Dev:          dev,
+				ScanInterval: scanInterval,
 			}, watcher, scanner, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -80,6 +83,7 @@ func main() {
 	cmd.Flags().StringVar(&tlsCA, "tls-ca", "", "CA cert to verify server TLS certificate (uses system CAs if omitted)")
 	cmd.Flags().StringVar(&saTokenPath, "sa-token-path", "", "Path to ServiceAccount token for OIDC auth (uses default in-cluster path if omitted)")
 	cmd.Flags().BoolVar(&dev, "dev", false, "Disable TLS and OIDC auth (local testing only)")
+	cmd.Flags().DurationVar(&scanInterval, "scan-interval", 24*time.Hour, "How often to re-scan all running images (0 to disable)")
 	cmd.MarkFlagRequired("cluster-id")
 
 	if err := cmd.Execute(); err != nil {

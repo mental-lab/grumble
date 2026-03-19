@@ -21,6 +21,7 @@ type PodEvent struct {
 type Watcher struct {
 	client kubernetes.Interface
 	events chan PodEvent
+	store  cache.Store // set once Run() syncs the cache
 	log    *zap.Logger
 }
 
@@ -34,6 +35,22 @@ func NewWatcher(client kubernetes.Interface, log *zap.Logger) *Watcher {
 
 func (w *Watcher) Events() <-chan PodEvent {
 	return w.events
+}
+
+// Pods returns all pods currently known to the informer cache.
+// Used for periodic re-scans.
+func (w *Watcher) Pods() []*corev1.Pod {
+	if w.store == nil {
+		return nil
+	}
+	objs := w.store.List()
+	pods := make([]*corev1.Pod, 0, len(objs))
+	for _, obj := range objs {
+		if pod, ok := obj.(*corev1.Pod); ok {
+			pods = append(pods, pod)
+		}
+	}
+	return pods
 }
 
 func (w *Watcher) Run(ctx context.Context) error {
@@ -64,6 +81,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 			w.send(PodEvent{Type: "DELETE", Pod: pod})
 		},
 	})
+
+	w.store = podInformer.GetStore()
 
 	factory.Start(ctx.Done())
 	factory.WaitForCacheSync(ctx.Done())
