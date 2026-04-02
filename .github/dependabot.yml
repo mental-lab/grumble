@@ -4,7 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
+    groups:
+      golang-x:
+        patterns: ["golang.org/x/*"]
+      anchore:
+        patterns: ["github.com/anchore/*"]
+      k8s:
+        patterns: ["k8s.io/*"]
+      google-cloud:
+        patterns: ["cloud.google.com/*", "google.golang.org/*"]
 
   - package-ecosystem: docker
     directory: /deploy
