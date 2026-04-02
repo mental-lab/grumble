@@ -37,4 +37,9 @@ spec:
               mountPath: {{ .Values.agent.grypeDBDir }}
       volumes:
         - name: grype-db
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "grumble-agent.fullname" . }}-grype-db
+          {{- else }}
           emptyDir: {}
+          {{- end }}
