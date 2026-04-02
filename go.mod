@@ -7,7 +7,7 @@ require (
 	github.com/anchore/syft v1.7.0
 	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/mattn/go-sqlite3 v1.14.37
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.79.3
