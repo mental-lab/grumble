@@ -49,7 +49,11 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 	if err != nil {
 		return nil, fmt.Errorf("loading grype db: %w", err)
 	}
-	defer vulnProvider.Close()
+	defer func() {
+		if err := vulnProvider.Close(); err != nil {
+			s.log.Warn("closing vuln provider", zap.Error(err))
+		}
+	}()
 
 	packages, pkgContext, _, err := pkg.Provide(image, pkg.ProviderConfig{
 		SyftProviderConfig: pkg.SyftProviderConfig{
