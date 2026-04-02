@@ -79,6 +79,53 @@ make build
 make test
 ```
 
+## Container Images
+
+Images are published automatically to [GitHub Container Registry](https://ghcr.io/mental-lab/grumble-agent) on every push to `main` and on version tags.
+
+| Tag | When |
+|-----|------|
+| `sha-<commit>` | Every push to `main` |
+| `v1.2.3` | On git tag `v1.2.3` |
+| `1.2` | On git tag `v1.2.x` |
+
+Every image is scanned with [Grype](https://github.com/anchore/grype) in CI. Builds fail on critical CVEs. Scan results are uploaded to GitHub Security → Code scanning.
+
+**Build locally:**
+
+```bash
+make docker-agent
+# produces grumble-agent:latest
+```
+
+**Deploy to a cluster:**
+
+```bash
+# 1. Ensure the image is available (built and pushed, or loaded into your cluster)
+# 2. Install via Helm
+helm install grumble-agent ./deploy/helm/agent \
+  --set agent.clusterID=prod-us-east \
+  --set agent.serverAddr=grumble.example.com:9090 \
+  --set image.repository=ghcr.io/mental-lab/grumble-agent \
+  --set image.tag=main
+```
+
+For local development clusters (e.g. Rancher Desktop / k3s):
+
+```bash
+# Build and import directly — no registry needed
+docker build -f deploy/Dockerfile.agent -t grumble-agent:dev .
+# For k3s: import into containerd
+docker save grumble-agent:dev | sudo k3s ctr images import -
+
+helm install grumble-agent ./deploy/helm/agent \
+  --set agent.clusterID=local \
+  --set agent.serverAddr=grumble-server:9090 \
+  --set image.repository=grumble-agent \
+  --set image.tag=dev \
+  --set image.pullPolicy=Never
+```
+
 ## Grafana
 
 Point a [JSON API datasource](https://grafana.com/grafana/plugins/marcusolsson-json-datasource/) at your grumble-server HTTP address.
