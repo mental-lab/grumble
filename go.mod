@@ -6,7 +6,7 @@ require (
 	github.com/anchore/grype v0.110.0
 	github.com/anchore/syft v1.42.3
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/mattn/go-sqlite3 v1.14.37
+	github.com/mattn/go-sqlite3 v1.14.40
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.20.0
