@@ -10,7 +10,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.20.0
-	google.golang.org/grpc v1.79.3
+	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.2
 	k8s.io/client-go v0.35.2
@@ -30,7 +30,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/CycloneDX/cyclonedx-go v0.10.0 // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 // indirect
 	github.com/Intevation/gval v1.3.0 // indirect
@@ -63,7 +63,6 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aquasecurity/go-pep440-version v0.0.1 // indirect
 	github.com/aquasecurity/go-version v0.0.1 // indirect
-	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.2 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.10 // indirect
@@ -153,7 +152,6 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-restruct/restruct v1.2.0-alpha // indirect
-	github.com/go-test/deep v1.1.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gocsaf/csaf/v3 v3.5.1 // indirect
@@ -164,10 +162,8 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-containerregistry v0.21.2 // indirect
 	github.com/google/licensecheck v0.3.1 // indirect
-	github.com/google/osv-scanner v1.9.2 // indirect
 	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
@@ -276,7 +272,6 @@ require (
 	github.com/sylabs/squashfs v1.0.6 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	github.com/umisama/go-cpe v0.0.0-20190323060751-cdd6c3c28a23 // indirect
 	github.com/vbatts/go-mtree v0.7.0 // indirect
 	github.com/vbatts/tar-split v0.12.2 // indirect
 	github.com/vifraa/gopom v1.0.0 // indirect
@@ -313,7 +308,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	gonum.org/v1/gonum v0.16.0 // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.267.0 // indirect
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260203192932-546029d2fa20 // indirect
