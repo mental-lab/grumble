@@ -165,8 +165,8 @@ func (a *API) vulns(w http.ResponseWriter, r *http.Request) {
 	args := []interface{}{}
 
 	if image != "" {
-		query += ` AND s.image = ?`
-		args = append(args, image)
+		query += ` AND s.image LIKE ?`
+		args = append(args, "%"+image+"%")
 	}
 	if cluster != "" {
 		query += ` AND s.cluster_id = ?`
