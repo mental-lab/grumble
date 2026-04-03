@@ -31,10 +31,11 @@ const (
 // The agent always initiates the outbound connection — no inbound
 // ports are required, making it firewall/NAT friendly.
 type Agent struct {
-	cfg     Config
-	watcher *Watcher
-	scanner *Scanner
-	log     *zap.Logger
+	cfg       Config
+	watcher   *Watcher
+	scanner   *Scanner
+	log       *zap.Logger
+	semaphore chan struct{}
 }
 
 type Config struct {
@@ -57,10 +58,19 @@ type Config struct {
 	// ScanInterval sets how often all known images are re-scanned.
 	// Set to 0 to disable periodic re-scanning (event-driven only).
 	ScanInterval time.Duration
+
+	// MaxConcurrentScans limits how many scanAndSend goroutines run at once.
+	MaxConcurrentScans int
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
-	return &Agent{cfg: cfg, watcher: watcher, scanner: scanner, log: log}
+	return &Agent{
+		cfg:       cfg,
+		watcher:   watcher,
+		scanner:   scanner,
+		log:       log,
+		semaphore: make(chan struct{}, cfg.MaxConcurrentScans),
+	}
 }
 
 func (a *Agent) Run(ctx context.Context) error {
@@ -219,6 +229,9 @@ func (a *Agent) sendInventory(stream proto.GrumbleServer_ConnectClient, event Po
 }
 
 func (a *Agent) scanAndSend(ctx context.Context, stream proto.GrumbleServer_ConnectClient, image string) {
+	a.semaphore <- struct{}{}
+	defer func() { <-a.semaphore }()
+
 	scanID := fmt.Sprintf("%s-%d", a.cfg.ClusterID, time.Now().UnixNano())
 	result, err := a.scanner.Scan(ctx, scanID, image)
 	if err != nil {

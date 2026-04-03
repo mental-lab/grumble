@@ -19,10 +19,12 @@ import (
 
 // Scanner wraps Grype to scan container images for vulnerabilities
 type Scanner struct {
-	distConfig v6dist.Config
-	instConfig v6inst.Config
-	log        *zap.Logger
-	clusterID  string
+	distConfig   v6dist.Config
+	instConfig   v6inst.Config
+	log          *zap.Logger
+	clusterID    string
+	vulnProvider vulnerability.Provider
+	dbVersion    string
 }
 
 func NewScanner(clusterID string, grypeDBDir string, log *zap.Logger) (*Scanner, error) {
@@ -33,27 +35,32 @@ func NewScanner(clusterID string, grypeDBDir string, log *zap.Logger) (*Scanner,
 		DBRootDir:        grypeDBDir,
 		ValidateChecksum: true,
 	}
+
+	vulnProvider, dbStatus, err := grype.LoadVulnerabilityDB(distCfg, instCfg, true)
+	if err != nil {
+		return nil, fmt.Errorf("loading grype db: %w", err)
+	}
+
 	return &Scanner{
-		distConfig: distCfg,
-		instConfig: instCfg,
-		log:        log,
-		clusterID:  clusterID,
+		distConfig:   distCfg,
+		instConfig:   instCfg,
+		log:          log,
+		clusterID:    clusterID,
+		vulnProvider: vulnProvider,
+		dbVersion:    dbStatus.SchemaVersion,
 	}, nil
+}
+
+// Close releases resources held by the Scanner (the Grype vulnerability DB).
+func (s *Scanner) Close() {
+	if err := s.vulnProvider.Close(); err != nil {
+		s.log.Warn("closing vuln provider", zap.Error(err))
+	}
 }
 
 // Scan runs Grype against a container image and returns a ScanResult
 func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanResult, error) {
 	s.log.Info("scanning image", zap.String("image", image), zap.String("scanID", scanID))
-
-	vulnProvider, dbStatus, err := grype.LoadVulnerabilityDB(s.distConfig, s.instConfig, true)
-	if err != nil {
-		return nil, fmt.Errorf("loading grype db: %w", err)
-	}
-	defer func() {
-		if err := vulnProvider.Close(); err != nil {
-			s.log.Warn("closing vuln provider", zap.Error(err))
-		}
-	}()
 
 	packages, pkgContext, _, err := pkg.Provide(image, pkg.ProviderConfig{
 		SyftProviderConfig: pkg.SyftProviderConfig{
@@ -65,7 +72,7 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 	}
 
 	vulnMatcher := &grype.VulnerabilityMatcher{
-		VulnerabilityProvider: vulnProvider,
+		VulnerabilityProvider: s.vulnProvider,
 		Matchers:              matcher.NewDefaultMatchers(matcher.Config{}),
 	}
 	remainingMatches, _, err := vulnMatcher.FindMatches(packages, pkgContext)
@@ -78,7 +85,7 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 		Image:          image,
 		ClusterId:      s.clusterID,
 		ScannedAt:      time.Now().Unix(),
-		GrypeDbVersion: dbStatus.SchemaVersion,
+		GrypeDbVersion: s.dbVersion,
 	}
 
 	for _, m := range remainingMatches.Sorted() {
