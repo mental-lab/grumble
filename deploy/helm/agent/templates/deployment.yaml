@@ -25,6 +25,7 @@ spec:
             - --cluster-id={{ .Values.agent.clusterID }}
             - --server={{ .Values.agent.serverAddr }}
             - --grype-db-dir={{ .Values.agent.grypeDBDir }}
+            - --max-concurrent-scans={{ .Values.agent.maxConcurrentScans }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
