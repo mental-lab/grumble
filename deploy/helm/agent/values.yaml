@@ -5,6 +5,8 @@ agent:
   serverAddr: "grumble-server:9090"
   # Directory to cache the Grype vulnerability DB
   grypeDBDir: "/tmp/grype-db"
+  # Maximum number of concurrent image scans
+  maxConcurrentScans: 3
 
 image:
   repository: ghcr.io/mental-lab/grumble-agent

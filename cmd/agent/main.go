@@ -18,15 +18,16 @@ import (
 
 func main() {
 	var (
-		serverAddr   string
-		clusterID    string
-		agentID      string
-		grypeDBDir   string
-		kubeconfig   string
-		tlsCA        string
-		saTokenPath  string
-		dev          bool
-		scanInterval time.Duration
+		serverAddr         string
+		clusterID          string
+		agentID            string
+		grypeDBDir         string
+		kubeconfig         string
+		tlsCA              string
+		saTokenPath        string
+		dev                bool
+		scanInterval       time.Duration
+		maxConcurrentScans int
 	)
 
 	cmd := &cobra.Command{
@@ -50,18 +51,20 @@ func main() {
 			if err != nil {
 				return err
 			}
+			defer scanner.Close()
 
 			watcher := agent.NewWatcher(client, log)
 
 			a := agent.New(agent.Config{
-				AgentID:      agentID,
-				ClusterID:    clusterID,
-				ServerAddr:   serverAddr,
-				GrypeDBDir:   grypeDBDir,
-				TLSCAFile:    tlsCA,
-				SATokenPath:  saTokenPath,
-				Dev:          dev,
-				ScanInterval: scanInterval,
+				AgentID:            agentID,
+				ClusterID:          clusterID,
+				ServerAddr:         serverAddr,
+				GrypeDBDir:         grypeDBDir,
+				TLSCAFile:          tlsCA,
+				SATokenPath:        saTokenPath,
+				Dev:                dev,
+				ScanInterval:       scanInterval,
+				MaxConcurrentScans: maxConcurrentScans,
 			}, watcher, scanner, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -84,6 +87,7 @@ func main() {
 	cmd.Flags().StringVar(&saTokenPath, "sa-token-path", "", "Path to ServiceAccount token for OIDC auth (uses default in-cluster path if omitted)")
 	cmd.Flags().BoolVar(&dev, "dev", false, "Disable TLS and OIDC auth (local testing only)")
 	cmd.Flags().DurationVar(&scanInterval, "scan-interval", 24*time.Hour, "How often to re-scan all running images (0 to disable)")
+	cmd.Flags().IntVar(&maxConcurrentScans, "max-concurrent-scans", 3, "Maximum number of concurrent image scans")
 	cmd.MarkFlagRequired("cluster-id")
 
 	if err := cmd.Execute(); err != nil {
