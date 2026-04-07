@@ -7,11 +7,17 @@ agent:
   grypeDBDir: "/tmp/grype-db"
   # Maximum number of concurrent image scans
   maxConcurrentScans: 3
+  # Disable TLS and OIDC auth (local testing only)
+  dev: false
 
 image:
   repository: ghcr.io/mental-lab/grumble-agent
   tag: "0.1.0"
   pullPolicy: IfNotPresent
+
+# Credentials for pulling images from private registries
+imagePullSecrets: []
+# - name: my-registry-secret
 
 resources:
   requests:
