@@ -17,6 +17,10 @@ spec:
         cluster: {{ .Values.agent.clusterID | quote }}
     spec:
       serviceAccountName: {{ include "grumble-agent.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: grumble-agent
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -26,6 +30,9 @@ spec:
             - --server={{ .Values.agent.serverAddr }}
             - --grype-db-dir={{ .Values.agent.grypeDBDir }}
             - --max-concurrent-scans={{ .Values.agent.maxConcurrentScans }}
+            {{- if .Values.agent.dev }}
+            - --dev
+            {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
