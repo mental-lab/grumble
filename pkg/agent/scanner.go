@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/anchore/grype/grype/pkg"
 	"github.com/anchore/grype/grype/vulnerability"
 	"github.com/anchore/syft/syft"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"go.uber.org/zap"
 
 	proto "github.com/mental-lab/grumble/pkg/proto"
@@ -129,12 +131,36 @@ func (s *Scanner) Scan(ctx context.Context, scanID, image string) (*proto.ScanRe
 		})
 	}
 
+	result.ImageLabels = fetchImageLabels(image)
+
 	s.log.Info("scan complete",
 		zap.String("image", image),
 		zap.Int("vulns", len(result.Vulns)),
 		zap.Int("packages", len(result.Packages)))
 
 	return result, nil
+}
+
+// fetchImageLabels retrieves OCI image labels from the registry.
+// Returns an empty map on any error — labels are best-effort and must never
+// fail a scan.
+func fetchImageLabels(image string) map[string]string {
+	cfg, err := crane.Config(image)
+	if err != nil {
+		return map[string]string{}
+	}
+	var imgCfg struct {
+		Config struct {
+			Labels map[string]string
+		}
+	}
+	if err := json.Unmarshal(cfg, &imgCfg); err != nil {
+		return map[string]string{}
+	}
+	if imgCfg.Config.Labels == nil {
+		return map[string]string{}
+	}
+	return imgCfg.Config.Labels
 }
 
 func fixedIn(v vulnerability.Vulnerability) string {

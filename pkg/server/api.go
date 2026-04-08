@@ -1,8 +1,11 @@
 package server
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -26,6 +29,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/clusters", a.clusters)
 	mux.HandleFunc("/inventory", a.inventory)
 	mux.HandleFunc("/images", a.images)
+	mux.HandleFunc("/images/export", a.imagesExport)
 	mux.HandleFunc("/packages", a.packages)
 	mux.HandleFunc("/vulns", a.vulns)
 	return mux
@@ -307,10 +311,79 @@ func (a *API) clusters(w http.ResponseWriter, r *http.Request) {
 
 // images returns the full image catalog — every unique image running across
 // all clusters, with pod/namespace counts and scan status.
-// Optional query params: ?cluster=<id>, ?scan_status=pending|scanned
+// Optional query params: ?cluster=<id>, ?scan_status=pending|scanned, ?source=chainguard
 func (a *API) images(w http.ResponseWriter, r *http.Request) {
+	entries, err := a.queryImages(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(entries)
+}
+
+// imagesExport returns the image catalog as a CSV download.
+// Accepts the same query params as /images.
+func (a *API) imagesExport(w http.ResponseWriter, r *http.Request) {
+	entries, err := a.queryImages(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="images.csv"`)
+
+	cw := csv.NewWriter(w)
+	cw.Write([]string{
+		"image", "image_digest", "cluster_id",
+		"namespace_count", "pod_count", "namespaces",
+		"first_seen", "last_seen",
+		"critical", "high", "medium", "low", "total_vulns",
+		"scan_status", "scanned_at", "is_chainguard",
+	})
+	for _, e := range entries {
+		cw.Write([]string{
+			e.Image, e.ImageDigest, e.ClusterID,
+			fmt.Sprintf("%d", e.NamespaceCount),
+			fmt.Sprintf("%d", e.PodCount),
+			e.Namespaces, e.FirstSeen, e.LastSeen,
+			fmt.Sprintf("%d", e.Critical),
+			fmt.Sprintf("%d", e.High),
+			fmt.Sprintf("%d", e.Medium),
+			fmt.Sprintf("%d", e.Low),
+			fmt.Sprintf("%d", e.TotalVulns),
+			e.ScanStatus, e.ScannedAt,
+			fmt.Sprintf("%v", e.IsChainguard),
+		})
+	}
+	cw.Flush()
+}
+
+type ImageEntry struct {
+	Image          string `json:"image"`
+	ImageDigest    string `json:"image_digest"`
+	ClusterID      string `json:"cluster_id"`
+	NamespaceCount int    `json:"namespace_count"`
+	PodCount       int    `json:"pod_count"`
+	Namespaces     string `json:"namespaces"`
+	FirstSeen      string `json:"first_seen"`
+	LastSeen       string `json:"last_seen"`
+	Critical       int    `json:"critical"`
+	High           int    `json:"high"`
+	Medium         int    `json:"medium"`
+	Low            int    `json:"low"`
+	TotalVulns     int    `json:"total_vulns"`
+	ScanStatus     string `json:"scan_status"`
+	ScannedAt      string `json:"scanned_at"`
+	ImageLabels    string `json:"image_labels"`
+	IsChainguard   bool   `json:"is_chainguard"`
+}
+
+func (a *API) queryImages(r *http.Request) ([]ImageEntry, error) {
 	cluster := r.URL.Query().Get("cluster")
 	scanStatus := r.URL.Query().Get("scan_status")
+	source := r.URL.Query().Get("source")
 
 	query := `
 		SELECT
@@ -318,7 +391,7 @@ func (a *API) images(w http.ResponseWriter, r *http.Request) {
 			namespace_count, pod_count, namespaces,
 			first_seen, last_seen,
 			critical, high, medium, low, total_vulns,
-			scan_status, scanned_at
+			scan_status, scanned_at, image_labels
 		FROM image_catalog
 		WHERE 1=1`
 	args := []interface{}{}
@@ -331,32 +404,16 @@ func (a *API) images(w http.ResponseWriter, r *http.Request) {
 		query += ` AND scan_status = ?`
 		args = append(args, scanStatus)
 	}
+	if source == "chainguard" {
+		query += ` AND json_extract(image_labels, '$."org.opencontainers.image.vendor"') = 'Chainguard'`
+	}
 	query += ` ORDER BY total_vulns DESC, pod_count DESC`
 
 	rows, err := a.store.db.Query(query, args...)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 	defer rows.Close()
-
-	type ImageEntry struct {
-		Image          string `json:"image"`
-		ImageDigest    string `json:"image_digest"`
-		ClusterID      string `json:"cluster_id"`
-		NamespaceCount int    `json:"namespace_count"`
-		PodCount       int    `json:"pod_count"`
-		Namespaces     string `json:"namespaces"`
-		FirstSeen      string `json:"first_seen"`
-		LastSeen       string `json:"last_seen"`
-		Critical       int    `json:"critical"`
-		High           int    `json:"high"`
-		Medium         int    `json:"medium"`
-		Low            int    `json:"low"`
-		TotalVulns     int    `json:"total_vulns"`
-		ScanStatus     string `json:"scan_status"`
-		ScannedAt      string `json:"scanned_at"`
-	}
 
 	var results []ImageEntry
 	for rows.Next() {
@@ -366,13 +423,12 @@ func (a *API) images(w http.ResponseWriter, r *http.Request) {
 			&e.NamespaceCount, &e.PodCount, &e.Namespaces,
 			&e.FirstSeen, &e.LastSeen,
 			&e.Critical, &e.High, &e.Medium, &e.Low, &e.TotalVulns,
-			&e.ScanStatus, &e.ScannedAt,
+			&e.ScanStatus, &e.ScannedAt, &e.ImageLabels,
 		)
+		e.IsChainguard = strings.Contains(e.ImageLabels, `"Chainguard"`)
 		results = append(results, e)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	return results, nil
 }
 
 func (a *API) inventory(w http.ResponseWriter, r *http.Request) {
