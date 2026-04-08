@@ -469,6 +469,7 @@ type ScanResult struct {
 	ScannedAt      int64                  `protobuf:"varint,6,opt,name=scanned_at,json=scannedAt,proto3" json:"scanned_at,omitempty"`
 	GrypeDbVersion string                 `protobuf:"bytes,7,opt,name=grype_db_version,json=grypeDbVersion,proto3" json:"grype_db_version,omitempty"`
 	Packages       []*Package             `protobuf:"bytes,8,rep,name=packages,proto3" json:"packages,omitempty"` // full package/dependency list
+	ImageLabels    map[string]string      `protobuf:"bytes,9,rep,name=image_labels,json=imageLabels,proto3" json:"image_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -555,6 +556,13 @@ func (x *ScanResult) GetGrypeDbVersion() string {
 func (x *ScanResult) GetPackages() []*Package {
 	if x != nil {
 		return x.Packages
+	}
+	return nil
+}
+
+func (x *ScanResult) GetImageLabels() map[string]string {
+	if x != nil {
+		return x.ImageLabels
 	}
 	return nil
 }

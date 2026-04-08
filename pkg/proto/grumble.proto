@@ -69,6 +69,7 @@ message ScanResult {
   int64 scanned_at             = 6;
   string grype_db_version      = 7;
   repeated Package packages    = 8; // full package/dependency list
+  map<string, string> image_labels = 9; // OCI image labels (best-effort)
 }
 
 // Package represents a single dependency found in an image (SBOM entry)

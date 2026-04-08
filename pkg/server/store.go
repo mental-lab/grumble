@@ -30,6 +30,8 @@ func NewStore(path string) (*Store, error) {
 func (s *Store) migrate() error {
 	// Drop views so they are always recreated with the latest definition.
 	s.db.Exec(`DROP VIEW IF EXISTS image_catalog`)
+	// Add image_labels column to existing DBs (ignore error if already present).
+	s.db.Exec(`ALTER TABLE scan_results ADD COLUMN image_labels TEXT`)
 
 	_, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS scan_results (
@@ -44,7 +46,8 @@ func (s *Store) migrate() error {
 			low           INTEGER DEFAULT 0,
 			vulns_json    TEXT,
 			scanned_at    DATETIME,
-			db_version    TEXT
+			db_version    TEXT,
+			image_labels  TEXT
 		);
 
 		CREATE TABLE IF NOT EXISTS pod_inventory (
@@ -108,7 +111,8 @@ func (s *Store) migrate() error {
 			COALESCE(s.vuln_count, 0)                     AS total_vulns,
 			CASE WHEN s.scanned_at IS NOT NULL
 				THEN 'scanned' ELSE 'pending' END         AS scan_status,
-			s.scanned_at
+			s.scanned_at,
+			COALESCE(s.image_labels, '{}')                AS image_labels
 		FROM pod_inventory p
 		LEFT JOIN latest_scans ls
 			ON ls.image = p.image AND ls.cluster_id = p.cluster_id
@@ -122,16 +126,18 @@ func (s *Store) migrate() error {
 func (s *Store) SaveScanResult(r *proto.ScanResult) error {
 	counts := countBySeverity(r.Vulns)
 	vulnsJSON, _ := json.Marshal(r.Vulns)
+	labelsJSON, _ := json.Marshal(r.ImageLabels)
 
 	_, err := s.db.Exec(`
 		INSERT OR REPLACE INTO scan_results
-			(id, cluster_id, image, image_digest, vuln_count, critical, high, medium, low, vulns_json, scanned_at, db_version)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, cluster_id, image, image_digest, vuln_count, critical, high, medium, low, vulns_json, scanned_at, db_version, image_labels)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ScanId, r.ClusterId, r.Image, r.ImageDigest,
 		len(r.Vulns), counts["CRITICAL"], counts["HIGH"], counts["MEDIUM"], counts["LOW"],
 		string(vulnsJSON),
 		time.Unix(r.ScannedAt, 0),
 		r.GrypeDbVersion,
+		string(labelsJSON),
 	)
 	if err != nil {
 		return err
