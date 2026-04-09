@@ -6,7 +6,8 @@ require (
 	github.com/anchore/grype v0.110.0
 	github.com/anchore/syft v1.42.3
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/mattn/go-sqlite3 v1.14.40
+	github.com/google/go-containerregistry v0.21.2
+	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.1
 	golang.org/x/sync v0.20.0
@@ -160,7 +161,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-containerregistry v0.21.2 // indirect
 	github.com/google/licensecheck v0.3.1 // indirect
 	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
