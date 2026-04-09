@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	github.com/anchore/grype v0.110.0
-	github.com/anchore/syft v1.42.3
+	github.com/anchore/syft v1.42.4
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/google/go-containerregistry v0.21.2
 	github.com/mattn/go-sqlite3 v1.14.42
@@ -322,10 +322,10 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
-	modernc.org/libc v1.67.6 // indirect
+	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.46.1 // indirect
+	modernc.org/sqlite v1.46.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
