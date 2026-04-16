@@ -7,7 +7,7 @@ agent:
   grypeDBDir: "/tmp/grype-db"
   # Maximum number of concurrent image scans
   maxConcurrentScans: 3
-  # Disable TLS and OIDC auth (local testing only)
+  # Disable TLS and OIDC auth (local/dev only)
   dev: false
 
 image:

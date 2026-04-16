@@ -1,0 +1,125 @@
+# Single-node OpenSearch FIPS for local Rancher Desktop
+# Auth disabled, no TLS, minimal resources
+
+global:
+  org: trineta.net
+  imagePullSecrets:
+    - name: cgr-registry-secret
+
+image:
+  registry: cgr.dev
+  repository: trineta.net/opensearch-iamguarded-fips
+  tag: v3.5.0
+
+security:
+  enabled: false
+
+# Single master node handles everything
+master:
+  replicaCount: 1
+  heapSize: 512m
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+  # Disable PVC — use emptyDir mounted at the path OpenSearch actually uses
+  persistence:
+    enabled: false
+  extraVolumes:
+    - name: opensearch-data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: opensearch-data
+      mountPath: /opt/iamguarded/opensearch/data
+  # FIPS mode requires pre-created BCFKS keystore and truststore
+  initContainers:
+    - name: setup-fips-keystores
+      image: cgr.dev/trineta.net/opensearch-iamguarded-fips:v3.5.0
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          set -e
+          CONF_DIR="/opt/iamguarded/opensearch/config"
+          FIPS_PASSWORD="${OPENSEARCH_KEYSTORE_PASSWORD:-changeit_fips_1234}"
+          BCJAR="/usr/share/java/bouncycastle-fips/bc-fips.jar"
+
+          # 1. Create opensearch settings keystore with FIPS-compliant password
+          rm -f "${CONF_DIR}/opensearch.keystore.tmp"
+          if [ ! -f "${CONF_DIR}/opensearch.keystore" ]; then
+            printf '%s\n%s\n' "${FIPS_PASSWORD}" "${FIPS_PASSWORD}" | \
+              OPENSEARCH_PATH_CONF="${CONF_DIR}" /opt/iamguarded/opensearch/bin/opensearch-keystore create -p
+          fi
+          rm -f "${CONF_DIR}/opensearch.keystore.tmp"
+
+          # 2. Convert system CA certs to BCFKS truststore
+          if [ ! -f "${CONF_DIR}/truststore.bcfks" ]; then
+            keytool -importkeystore \
+              -srckeystore /etc/ssl/certs/java/cacerts \
+              -srcstoretype JKS -srcstorepass changeit \
+              -destkeystore "${CONF_DIR}/truststore.bcfks" \
+              -deststoretype BCFKS -deststorepass "${FIPS_PASSWORD}" \
+              -providerclass org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider \
+              -providerpath "${BCJAR}" -noprompt
+          fi
+
+          # 3. Generate self-signed BCFKS keystore (replace with your own certs in production)
+          if [ ! -f "${CONF_DIR}/keystore.bcfks" ]; then
+            keytool -genkeypair -alias default -keyalg RSA -keysize 2048 \
+              -validity 3650 -dname "CN=localhost" \
+              -keystore "${CONF_DIR}/keystore.bcfks" \
+              -storetype BCFKS -storepass "${FIPS_PASSWORD}" \
+              -providerclass org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider \
+              -providerpath "${BCJAR}"
+          fi
+
+          # 4. Add FIPS truststore/keystore JVM options
+          cat >> "${CONF_DIR}/jvm.options" << JVMEOF
+          -Djavax.net.ssl.trustStore=${CONF_DIR}/truststore.bcfks
+          -Djavax.net.ssl.trustStorePassword=${FIPS_PASSWORD}
+          -Djavax.net.ssl.trustStoreType=BCFKS
+          -Djavax.net.ssl.keyStore=${CONF_DIR}/keystore.bcfks
+          -Djavax.net.ssl.keyStorePassword=${FIPS_PASSWORD}
+          -Djavax.net.ssl.keyStoreType=BCFKS
+          JVMEOF
+      env:
+        - name: OPENSEARCH_KEYSTORE_PASSWORD
+          value: "changeit_fips_1234"
+      volumeMounts:
+        - name: empty-dir
+          mountPath: /opt/iamguarded/opensearch/config
+          subPath: app-conf-dir
+  extraEnvVars:
+    - name: KEYSTORE_PASSWORD
+      value: "changeit_fips_1234"
+
+# Disable dedicated data/ingest/coordinating nodes
+data:
+  replicaCount: 0
+
+ingest:
+  replicaCount: 0
+
+coordinating:
+  replicaCount: 0
+
+# Include Dashboards (OpenSearch's Kibana equivalent)
+dashboards:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Single-node discovery
+extraEnvVars:
+  - name: discovery.type
+    value: single-node
