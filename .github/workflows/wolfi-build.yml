@@ -22,48 +22,113 @@ env:
   IMAGE_OWNER: ${{ github.repository_owner }}
 
 jobs:
-  build:
+  # Generate a single melange signing keypair for this workflow run and share
+  # it across build jobs so all per-arch apks are signed by the same key.
+  keygen:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        component:
-          - name: grumble-agent
-          - name: grumble-server
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
-
-      - name: Set up QEMU for cross-arch builds
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
-        with:
-          platforms: arm64
-
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install melange + apko
-        run: |
-          set -eux
-          go install chainguard.dev/melange@latest
-          go install chainguard.dev/apko@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - uses: chainguard-dev/actions/setup-melange@df684a72f67ce7eecd78098365cb5057f16be3b1 # main
 
       - name: Generate melange signing key
         run: melange keygen melange.rsa
 
-      - name: Build apk with melange
+      - name: Upload signing key
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: melange-key
+          path: |
+            melange.rsa
+            melange.rsa.pub
+          retention-days: 1
+
+  # Per-(component, arch) native apk build. Native ARM runners skip QEMU,
+  # cutting build time ~4-5x compared to emulated cross-builds.
+  build-apk:
+    needs: keygen
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: grumble-agent
+            arch: x86_64
+            runner: ubuntu-latest
+          - component: grumble-agent
+            arch: aarch64
+            runner: ubuntu-24.04-arm
+          - component: grumble-server
+            arch: x86_64
+            runner: ubuntu-latest
+          - component: grumble-server
+            arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - uses: chainguard-dev/actions/setup-melange@df684a72f67ce7eecd78098365cb5057f16be3b1 # main
+
+      - name: Download signing key
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: melange-key
+
+      - name: Build apk (${{ matrix.arch }})
         run: |
           set -eux
           melange build \
-            ".melange/${{ matrix.component.name }}.yaml" \
-            --arch x86_64,aarch64 \
+            ".melange/${{ matrix.component }}.yaml" \
+            --arch "${{ matrix.arch }}" \
             --signing-key melange.rsa \
             --runner docker \
             --source-dir "$PWD" \
             --out-dir ./packages
+
+      - name: Upload apk
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: apk-${{ matrix.component }}-${{ matrix.arch }}
+          path: packages/
+          retention-days: 1
+
+  # Combine per-arch apks into a multi-arch OCI image with apko.
+  # apko doesn't execute target-arch binaries during publish (it just lays
+  # out filesystems from apks), so this job runs fine on ubuntu-latest
+  # without QEMU.
+  publish-image:
+    needs: build-apk
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [grumble-agent, grumble-server]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Install apko
+        run: |
+          set -eux
+          curl -sSfL -o /tmp/apko.tgz \
+            "https://github.com/chainguard-dev/apko/releases/latest/download/apko_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz"
+          tar -xzf /tmp/apko.tgz -C /tmp
+          sudo mv /tmp/apko_*/apko /usr/local/bin/apko
+          apko version
+
+      - name: Download signing key
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: melange-key
+
+      - name: Download apks for ${{ matrix.component }}
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          pattern: apk-${{ matrix.component }}-*
+          path: packages/
+          merge-multiple: true
+
+      - name: Inspect packages layout
+        run: |
+          set -eux
+          find packages -type f | sort
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
@@ -77,7 +142,7 @@ jobs:
         id: tags
         run: |
           set -eux
-          IMG="${REGISTRY}/${IMAGE_OWNER}/${{ matrix.component.name }}"
+          IMG="${REGISTRY}/${IMAGE_OWNER}/${{ matrix.component }}"
           SHORT_SHA="$(git rev-parse --short HEAD)"
           TAGS="${IMG}:sha-${SHORT_SHA}"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -86,7 +151,6 @@ jobs:
           elif [[ "${GITHUB_REF}" == refs/heads/wolfi-style ]]; then
             TAGS="${TAGS} ${IMG}:wolfi-style"
           fi
-          # apko publish takes tags as args; emit space-separated
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
           echo "primary=${IMG}:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
@@ -94,8 +158,9 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           set -eux
+          mkdir -p ./sboms
           apko build \
-            "apko/${{ matrix.component.name }}.yaml" \
+            "apko/${{ matrix.component }}.yaml" \
             "${{ steps.tags.outputs.primary }}" \
             ./image.tar \
             -k melange.rsa.pub \
@@ -109,7 +174,7 @@ jobs:
           set -eux
           mkdir -p ./sboms
           apko publish \
-            "apko/${{ matrix.component.name }}.yaml" \
+            "apko/${{ matrix.component }}.yaml" \
             ${{ steps.tags.outputs.tags }} \
             -k melange.rsa.pub \
             --sbom-path ./sboms \
@@ -121,7 +186,7 @@ jobs:
       - name: Upload SBOMs as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sboms-${{ matrix.component.name }}
+          name: sboms-${{ matrix.component }}
           path: ./sboms/
           if-no-files-found: warn
 
@@ -130,9 +195,8 @@ jobs:
         id: scan
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
-          # Point grype at the SBOM apko just produced rather than re-scanning
-          # the image (which would make syft re-infer contents). This gives an
-          # authoritative scan of what melange/apko actually built.
+          # Scan the SBOM apko produced rather than re-inferring from the
+          # image, for an authoritative verdict on what was actually built.
           sbom: ./sboms/sbom-x86_64.spdx.json
           fail-build: false
           severity-cutoff: high
@@ -143,10 +207,10 @@ jobs:
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
-          category: wolfi-${{ matrix.component.name }}
+          category: wolfi-${{ matrix.component }}
 
   release:
-    needs: build
+    needs: publish-image
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
