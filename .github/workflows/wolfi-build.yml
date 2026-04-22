@@ -33,6 +33,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
+      - name: Set up QEMU for cross-arch builds
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+        with:
+          platforms: arm64
+
       - name: Setup Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
@@ -134,7 +139,7 @@ jobs:
           output-format: sarif
 
       - name: Upload Grype SARIF
-        if: github.event_name != 'pull_request' && always()
+        if: github.event_name != 'pull_request' && steps.scan.outputs.sarif != ''
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
