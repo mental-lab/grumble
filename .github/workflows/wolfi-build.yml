@@ -11,10 +11,6 @@ on:
     # and runtime libs ship continuously to https://packages.wolfi.dev/os).
     - cron: '0 8 * * 1'
   workflow_dispatch:
-    inputs:
-      version:
-        description: Override package version (defaults to git describe)
-        required: false
 
 permissions:
   contents: read
@@ -49,28 +45,6 @@ jobs:
           go install chainguard.dev/melange@latest
           go install chainguard.dev/apko@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Determine version
-        id: version
-        run: |
-          set -eux
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION="0.0.0-$(git rev-parse --short HEAD)"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Stamp version into melange config
-        run: |
-          set -eux
-          VERSION="${{ steps.version.outputs.version }}"
-          # melange requires SemVer-ish; strip any leading non-numerics just in case
-          CFG=".melange/${{ matrix.component.name }}.yaml"
-          sed -i -E "s/^(  version:).*/\1 ${VERSION}/" "$CFG"
-          grep -E '^  (version|epoch):' "$CFG"
 
       - name: Generate melange signing key
         run: melange keygen melange.rsa
