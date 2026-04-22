@@ -14,11 +14,10 @@ updates:
         patterns: ["k8s.io/*"]
       google-cloud:
         patterns: ["cloud.google.com/*", "google.golang.org/*"]
-
-  - package-ecosystem: docker
-    directory: /deploy
-    schedule:
-      interval: weekly
+      otel:
+        patterns: ["go.opentelemetry.io/*"]
+      aws-sdk:
+        patterns: ["github.com/aws/*"]
 
   - package-ecosystem: github-actions
     directory: /
