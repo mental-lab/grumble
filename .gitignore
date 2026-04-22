@@ -7,3 +7,17 @@ bin/
 *.pem
 *.key
 vendor/
+
+# Wolfi / melange / apko local build artifacts
+/packages/
+/sboms/
+/melange.rsa
+/melange.rsa.pub
+/grumble-agent.tar
+/grumble-server.tar
+/grumble-agent
+/grumble-server
+melange-cache/
+sbom-*.json
+grype-*.sarif
+grype-*.txt

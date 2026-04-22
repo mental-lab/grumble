@@ -1,0 +1,189 @@
+name: Wolfi Build
+
+on:
+  push:
+    branches: [wolfi-style]
+    tags: ['v*']
+  pull_request:
+    branches: [wolfi-style]
+  schedule:
+    # Weekly rebuild to pick up fresh Wolfi apks (CVE patches in toolchain
+    # and runtime libs ship continuously to https://packages.wolfi.dev/os).
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Override package version (defaults to git describe)
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - name: grumble-agent
+          - name: grumble-server
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install melange + apko
+        run: |
+          set -eux
+          go install chainguard.dev/melange@latest
+          go install chainguard.dev/apko@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Determine version
+        id: version
+        run: |
+          set -eux
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.0-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp version into melange config
+        run: |
+          set -eux
+          VERSION="${{ steps.version.outputs.version }}"
+          # melange requires SemVer-ish; strip any leading non-numerics just in case
+          CFG=".melange/${{ matrix.component.name }}.yaml"
+          sed -i -E "s/^(  version:).*/\1 ${VERSION}/" "$CFG"
+          grep -E '^  (version|epoch):' "$CFG"
+
+      - name: Generate melange signing key
+        run: melange keygen melange.rsa
+
+      - name: Build apk with melange
+        run: |
+          set -eux
+          melange build \
+            ".melange/${{ matrix.component.name }}.yaml" \
+            --arch x86_64,aarch64 \
+            --signing-key melange.rsa \
+            --runner docker \
+            --source-dir "$PWD" \
+            --out-dir ./packages
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          set -eux
+          IMG="${REGISTRY}/${IMAGE_OWNER}/${{ matrix.component.name }}"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          TAGS="${IMG}:sha-${SHORT_SHA}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VTAG="${GITHUB_REF#refs/tags/}"
+            TAGS="${TAGS} ${IMG}:${VTAG} ${IMG}:latest"
+          elif [[ "${GITHUB_REF}" == refs/heads/wolfi-style ]]; then
+            TAGS="${TAGS} ${IMG}:wolfi-style"
+          fi
+          # apko publish takes tags as args; emit space-separated
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "primary=${IMG}:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build OCI image with apko (PR = local only)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -eux
+          apko build \
+            "apko/${{ matrix.component.name }}.yaml" \
+            "${{ steps.tags.outputs.primary }}" \
+            ./image.tar \
+            -k melange.rsa.pub \
+            --sbom-path ./sboms \
+            --arch x86_64,aarch64
+
+      - name: Publish OCI image with apko
+        if: github.event_name != 'pull_request'
+        id: apko
+        run: |
+          set -eux
+          mkdir -p ./sboms
+          apko publish \
+            "apko/${{ matrix.component.name }}.yaml" \
+            ${{ steps.tags.outputs.tags }} \
+            -k melange.rsa.pub \
+            --sbom-path ./sboms \
+            --arch x86_64,aarch64 \
+            | tee apko.out
+          DIGEST="$(tail -n1 apko.out)"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SBOMs as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sboms-${{ matrix.component.name }}
+          path: ./sboms/
+          if-no-files-found: warn
+
+      - name: Scan apko-generated SBOM with Grype
+        if: github.event_name != 'pull_request'
+        id: scan
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          # Point grype at the SBOM apko just produced rather than re-scanning
+          # the image (which would make syft re-infer contents). This gives an
+          # authoritative scan of what melange/apko actually built.
+          sbom: ./sboms/sbom-x86_64.spdx.json
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload Grype SARIF
+        if: github.event_name != 'pull_request' && always()
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: wolfi-${{ matrix.component.name }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Download all SBOMs
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          path: sboms
+          pattern: sboms-*
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2
+        with:
+          generate_release_notes: true
+          files: sboms/**/*

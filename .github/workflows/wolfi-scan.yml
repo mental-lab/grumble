@@ -1,0 +1,73 @@
+name: Wolfi Scheduled Scan
+
+on:
+  schedule:
+    # Weekly: every Monday 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - grumble-agent
+          - grumble-server
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install grype + cosign
+        run: |
+          set -eux
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          chmod +x /usr/local/bin/cosign
+
+      - name: Pull SBOM attached by apko
+        id: sbom
+        run: |
+          set -eux
+          IMG="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest"
+          # apko publish attaches SPDX SBOMs to the image as OCI referrers.
+          # cosign download sbom writes them to stdout; pipe to a file.
+          cosign download sbom "${IMG}" > sbom-${{ matrix.image }}.spdx.json
+          head -c 400 sbom-${{ matrix.image }}.spdx.json; echo
+
+      - name: Scan build-time SBOM with Grype
+        id: scan
+        run: |
+          set -eux
+          grype "sbom:sbom-${{ matrix.image }}.spdx.json" \
+            -o sarif --file grype-${{ matrix.image }}.sarif || true
+          grype "sbom:sbom-${{ matrix.image }}.spdx.json" \
+            -o table --file grype-${{ matrix.image }}.txt || true
+          cat grype-${{ matrix.image }}.txt
+
+      - name: Upload Grype SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: grype-${{ matrix.image }}.sarif
+          category: wolfi-scheduled-${{ matrix.image }}
+
+      - name: Upload SBOM + reports
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scan-${{ matrix.image }}-${{ github.run_id }}
+          path: |
+            sbom-${{ matrix.image }}.spdx.json
+            grype-${{ matrix.image }}.*
