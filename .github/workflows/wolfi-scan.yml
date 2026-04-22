@@ -8,8 +8,9 @@ on:
 
 permissions:
   contents: read
-  security-events: write
   packages: read
+  actions: read
+  security-events: write
 
 jobs:
   scan:
