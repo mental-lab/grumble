@@ -105,10 +105,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
       - name: Install apko
+        env:
+          APKO_VERSION: "1.2.7"
         run: |
           set -eux
+          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
           curl -sSfL -o /tmp/apko.tgz \
-            "https://github.com/chainguard-dev/apko/releases/latest/download/apko_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.tar.gz"
+            "https://github.com/chainguard-dev/apko/releases/download/v${APKO_VERSION}/apko_${APKO_VERSION}_${OS}_amd64.tar.gz"
           tar -xzf /tmp/apko.tgz -C /tmp
           sudo mv /tmp/apko_*/apko /usr/local/bin/apko
           apko version
