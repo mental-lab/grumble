@@ -1,0 +1,14 @@
+FROM golang:1.26-alpine AS build
+RUN apk add --no-cache gcc musl-dev sqlite-dev
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /grumble-server ./cmd/server
+
+FROM alpine:3
+RUN apk add --no-cache ca-certificates sqlite-libs tzdata && \
+    addgroup -S nonroot && adduser -S -G nonroot nonroot
+USER nonroot
+COPY --from=build /grumble-server /usr/bin/grumble-server
+ENTRYPOINT ["grumble-server", "serve"]
