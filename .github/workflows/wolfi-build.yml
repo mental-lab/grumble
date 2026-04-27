@@ -32,13 +32,25 @@ jobs:
       - name: Generate melange signing key
         run: melange keygen melange.rsa
 
+
       - name: Upload signing key
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+=======
+      - name: Upload signing key (private + public, for build-apk)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+>>>>>>> 3942c92 (fix(ci/wolfi): split melange key artifact into sign and verify)
         with:
-          name: melange-key
+          name: melange-signing-key
           path: |
             melange.rsa
             melange.rsa.pub
+          retention-days: 1
+
+      - name: Upload verify key (public only, for publish-image)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: melange-verify-key
+          path: melange.rsa.pub
           retention-days: 1
 
   # Per-(component, arch) native apk build. Native ARM runners skip QEMU,
@@ -70,7 +82,7 @@ jobs:
       - name: Download signing key
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         with:
-          name: melange-key
+          name: melange-signing-key
 
       - name: Build apk (${{ matrix.arch }})
         run: |
@@ -121,10 +133,10 @@ jobs:
           sudo mv /tmp/apko_*/apko /usr/local/bin/apko
           apko version
 
-      - name: Download signing key
+      - name: Download verify key
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         with:
-          name: melange-key
+          name: melange-verify-key
 
       - name: Download apks for ${{ matrix.component }}
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
