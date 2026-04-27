@@ -23,6 +23,29 @@
         "query": ""
       },
       {
+        "name": "source_filter",
+        "label": "Source",
+        "type": "custom",
+        "current": {
+          "value": "",
+          "text": "All"
+        },
+        "hide": 0,
+        "options": [
+          {
+            "value": "",
+            "text": "All",
+            "selected": true
+          },
+          {
+            "value": "chainguard",
+            "text": "Chainguard",
+            "selected": false
+          }
+        ],
+        "query": "All,Chainguard"
+      },
+      {
         "name": "severity_filter",
         "label": "Severity",
         "type": "custom",
@@ -285,6 +308,60 @@
               "selector": "images_scanned",
               "text": "images_scanned",
               "type": "number"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "title": "Chainguard Images",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "options": {
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ]
+        }
+      },
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "count"
+            ]
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "grumble-api"
+          },
+          "type": "json",
+          "parser": "backend",
+          "source": "url",
+          "format": "table",
+          "url": "/images?source=chainguard",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "image",
+              "text": "image",
+              "type": "string"
             }
           ]
         }
@@ -701,7 +778,7 @@
           "parser": "backend",
           "source": "url",
           "format": "table",
-          "url": "/images",
+          "url": "/images?source=${source_filter:raw}",
           "url_options": {
             "method": "GET"
           },

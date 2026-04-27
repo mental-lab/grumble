@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -87,6 +88,12 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_scan_image   ON scan_results(image);
 		CREATE INDEX IF NOT EXISTS idx_pod_cluster  ON pod_inventory(cluster_id);
 		CREATE INDEX IF NOT EXISTS idx_pod_image    ON pod_inventory(image);
+
+		CREATE TABLE IF NOT EXISTS agent_tokens (
+			cluster_id   TEXT NOT NULL,
+			token_hash   TEXT NOT NULL UNIQUE,
+			created_at   DATETIME NOT NULL
+		);
 
 		-- Image catalog: one row per unique image+cluster, joined with
 		-- the latest scan result for that image.
@@ -200,6 +207,28 @@ func (s *Store) SaveInventory(clusterID string, inv *proto.PodInventory) error {
 func (s *Store) UpdateHeartbeat(agentID string, ts int64) {
 	s.db.Exec(`INSERT OR REPLACE INTO agent_heartbeats (agent_id, last_seen) VALUES (?, ?)`,
 		agentID, time.Unix(ts, 0))
+}
+
+// LookupToken returns the cluster ID associated with the given token hash.
+// Returns an error if the token is not found.
+func (s *Store) LookupToken(ctx context.Context, tokenHash string) (string, error) {
+	var clusterID string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT cluster_id FROM agent_tokens WHERE token_hash = ?`, tokenHash,
+	).Scan(&clusterID)
+	if err == sql.ErrNoRows {
+		return "", fmt.Errorf("token not found")
+	}
+	return clusterID, err
+}
+
+// RegisterToken stores a hashed token associated with the given cluster ID.
+func (s *Store) RegisterToken(clusterID, tokenHash string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO agent_tokens (cluster_id, token_hash, created_at) VALUES (?, ?, ?)`,
+		clusterID, tokenHash, time.Now(),
+	)
+	return err
 }
 
 func countBySeverity(vulns []*proto.Vulnerability) map[string]int {

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -18,6 +17,18 @@ import (
 )
 
 func main() {
+	root := &cobra.Command{
+		Use:   "grumble-server",
+		Short: "Grumble central server — aggregates scan results from all cluster agents",
+	}
+	root.AddCommand(serveCmd(), registerCmd())
+
+	if err := root.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func serveCmd() *cobra.Command {
 	var (
 		grpcAddr string
 		httpAddr string
@@ -25,12 +36,13 @@ func main() {
 		tlsCert  string
 		tlsKey   string
 		devMode  bool
-		clusters []string // repeated --cluster id=issuer_url flags
 	)
 
 	cmd := &cobra.Command{
-		Use:   "grumble-server",
-		Short: "Grumble central server — aggregates scan results from all cluster agents",
+		Use:   "serve",
+		Short: "Start the gRPC and HTTP servers",
+		// Keep bare invocation working for backwards compatibility with existing deployments.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log, _ := zap.NewProduction()
 			defer log.Sync() //nolint:errcheck
@@ -42,19 +54,9 @@ func main() {
 
 			var validator *auth.Validator
 			if devMode {
-				log.Warn("--dev mode enabled: OIDC auth disabled, all agents accepted")
+				log.Warn("--dev mode enabled: token auth disabled, all agents accepted")
 			} else {
-				clusterConfigs, err := parseClusters(clusters)
-				if err != nil {
-					return fmt.Errorf("invalid --cluster flag: %w", err)
-				}
-				if len(clusterConfigs) == 0 {
-					return fmt.Errorf("at least one --cluster flag is required in production mode (or use --dev)")
-				}
-				validator, err = auth.NewValidator(cmd.Context(), clusterConfigs, log)
-				if err != nil {
-					return fmt.Errorf("initializing OIDC validator: %w", err)
-				}
+				validator = auth.NewValidator(store, log)
 			}
 
 			srv := server.New(store, validator, log)
@@ -65,20 +67,15 @@ func main() {
 
 			g, ctx := errgroup.WithContext(ctx)
 
-			// gRPC server — agents connect here
 			var tlsCfg *server.TLSConfig
 			if tlsCert != "" {
-				tlsCfg = &server.TLSConfig{
-					CertFile: tlsCert,
-					KeyFile:  tlsKey,
-				}
+				tlsCfg = &server.TLSConfig{CertFile: tlsCert, KeyFile: tlsKey}
 			}
 			g.Go(func() error {
 				log.Info("starting gRPC server", zap.String("addr", grpcAddr))
 				return srv.Run(grpcAddr, tlsCfg)
 			})
 
-			// HTTP API — Grafana queries here
 			g.Go(func() error {
 				log.Info("starting HTTP API", zap.String("addr", httpAddr))
 				httpServer := &http.Server{Addr: httpAddr, Handler: api.Handler()}
@@ -93,29 +90,53 @@ func main() {
 		},
 	}
 
-	cmd.Flags().StringVar(&grpcAddr, "grpc-addr", ":9090", "gRPC listen address (agents connect here)")
-	cmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP API listen address (Grafana connects here)")
+	cmd.Flags().StringVar(&grpcAddr, "grpc-addr", ":9090", "gRPC listen address")
+	cmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP API listen address")
 	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
-	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Server TLS certificate file (enables TLS)")
+	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Server TLS certificate file")
 	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Server TLS key file")
-	cmd.Flags().BoolVar(&devMode, "dev", false, "Disable OIDC auth for local development")
-	cmd.Flags().StringArrayVar(&clusters, "cluster", nil,
-		"Register a cluster for OIDC auth: --cluster id=https://issuer-url (repeatable)")
-
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+	cmd.Flags().BoolVar(&devMode, "dev", false, "Disable token auth for local development")
+	return cmd
 }
 
-// parseClusters parses --cluster id=issuer_url flags into a ClusterConfig map.
-func parseClusters(raw []string) (map[string]auth.ClusterConfig, error) {
-	configs := make(map[string]auth.ClusterConfig, len(raw))
-	for _, s := range raw {
-		parts := strings.SplitN(s, "=", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return nil, fmt.Errorf("%q: expected format id=issuer_url", s)
-		}
-		configs[parts[0]] = auth.ClusterConfig{IssuerURL: parts[1]}
+func registerCmd() *cobra.Command {
+	var (
+		dbPath    string
+		clusterID string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "register-cluster",
+		Short: "Register a cluster and generate an agent token",
+		Long: `Generates a random agent token for a cluster and stores its hash in the database.
+Print the token once — it cannot be recovered. Store it in a Kubernetes Secret:
+
+  kubectl create secret generic grumble-token \
+    --from-literal=token=<printed-token>`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := server.NewStore(dbPath)
+			if err != nil {
+				return err
+			}
+
+			token, hash, err := auth.GenerateToken()
+			if err != nil {
+				return fmt.Errorf("generating token: %w", err)
+			}
+
+			if err := store.RegisterToken(clusterID, hash); err != nil {
+				return fmt.Errorf("storing token: %w", err)
+			}
+
+			fmt.Printf("Cluster: %s\nToken:   %s\n\nStore this token in a Kubernetes Secret:\n  kubectl create secret generic grumble-token --from-literal=token=%s\n", clusterID, token, token)
+			return nil
+		},
 	}
-	return configs, nil
+
+	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
+	cmd.Flags().StringVar(&clusterID, "name", "", "Cluster name (required)")
+	if err := cmd.MarkFlagRequired("name"); err != nil {
+		panic(err)
+	}
+	return cmd
 }

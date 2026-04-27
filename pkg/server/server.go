@@ -28,7 +28,7 @@ func New(store *Store, validator *auth.Validator, log *zap.Logger) *Server {
 }
 
 // TLSConfig holds TLS configuration for the server.
-// Authentication is handled by OIDC — only server cert/key needed.
+// Authentication is handled by agent tokens — only server cert/key needed.
 type TLSConfig struct {
 	CertFile string
 	KeyFile  string
@@ -53,15 +53,15 @@ func (s *Server) Run(addr string, tls *TLSConfig) error {
 		s.log.Warn("TLS not configured — running insecure (dev only)")
 	}
 
-	// Wire OIDC token validation interceptors if a validator is configured
+	// Wire token validation interceptors if a validator is configured
 	if s.validator != nil {
 		serverOpts = append(serverOpts,
 			grpc.UnaryInterceptor(s.validator.UnaryInterceptor()),
 			grpc.StreamInterceptor(s.validator.StreamInterceptor()),
 		)
-		s.log.Info("OIDC token validation enabled")
+		s.log.Info("agent token validation enabled")
 	} else {
-		s.log.Warn("OIDC auth disabled — all agents accepted (dev mode only)")
+		s.log.Warn("token auth disabled — all agents accepted (dev mode only)")
 	}
 
 	grpcServer := grpc.NewServer(serverOpts...)
