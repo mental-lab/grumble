@@ -33,7 +33,7 @@ jobs:
         run: melange keygen melange.rsa
 
       - name: Upload signing key
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: melange-key
           path: |
@@ -84,7 +84,7 @@ jobs:
             --out-dir ./packages
 
       - name: Upload apk
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: apk-${{ matrix.component }}-${{ matrix.arch }}
           path: packages/
@@ -192,7 +192,7 @@ jobs:
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOMs as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sboms-${{ matrix.component }}
           path: ./sboms/
