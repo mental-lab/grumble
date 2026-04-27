@@ -1,0 +1,16 @@
+services:
+  grumble-server:
+    build: !reset null
+    image: ghcr.io/mental-lab/grumble-server:wolfi-style
+
+  grumble-agent:
+    image: ghcr.io/mental-lab/grumble-agent:wolfi-style
+    command:
+      - --server=grumble-server:9090
+      - --cluster-id=local
+      - --dev
+    volumes:
+      - ${KUBECONFIG:-~/.kube/config}:/root/.kube/config:ro
+    depends_on:
+      - grumble-server
+    restart: unless-stopped

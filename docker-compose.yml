@@ -13,7 +13,21 @@ services:
       - --grpc-addr=:9090
       - --http-addr=:8080
       - --db=/data/grumble.db
-      - --dev   # disables OIDC auth for local testing
+      - --dev
+    restart: unless-stopped
+
+  grumble-agent:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.agent
+    command:
+      - --server=grumble-server:9090
+      - --cluster-id=local
+      - --dev
+    volumes:
+      - ${KUBECONFIG:-~/.kube/config}:/root/.kube/config:ro
+    depends_on:
+      - grumble-server
     restart: unless-stopped
 
   grafana:

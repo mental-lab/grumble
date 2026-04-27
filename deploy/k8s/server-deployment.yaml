@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grumble-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grumble-server
+  template:
+    metadata:
+      labels:
+        app: grumble-server
+    spec:
+      containers:
+        - name: grumble-server
+          image: ghcr.io/mental-lab/grumble-server:wolfi-style
+          args:
+            - serve
+            - --grpc-addr=:9090
+            - --http-addr=:8080
+            - --db=/data/grumble.db
+            - --dev
+          ports:
+            - containerPort: 9090
+            - containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: grumble-server-data
