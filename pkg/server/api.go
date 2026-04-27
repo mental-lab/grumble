@@ -405,7 +405,8 @@ func (a *API) queryImages(r *http.Request) ([]ImageEntry, error) {
 		args = append(args, scanStatus)
 	}
 	if source == "chainguard" {
-		query += ` AND json_extract(image_labels, '$."org.opencontainers.image.vendor"') = 'Chainguard'`
+		query += ` AND json_extract(image_labels, '$."org.opencontainers.image.vendor"') = ?`
+		args = append(args, "Chainguard")
 	}
 	query += ` ORDER BY total_vulns DESC, pod_count DESC`
 
@@ -415,7 +416,7 @@ func (a *API) queryImages(r *http.Request) ([]ImageEntry, error) {
 	}
 	defer rows.Close()
 
-	var results []ImageEntry
+	results := []ImageEntry{}
 	for rows.Next() {
 		var e ImageEntry
 		rows.Scan(
