@@ -2,120 +2,79 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// ClusterConfig tells the validator how to verify tokens from a specific cluster.
-type ClusterConfig struct {
-	// IssuerURL is the OIDC issuer for this cluster's API server.
-	// e.g. "https://oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
-	// For in-cluster: "https://kubernetes.default.svc"
-	IssuerURL string
-
-	// Audience is the expected token audience.
-	// Defaults to "https://kubernetes.default.svc.cluster.local" if empty.
-	Audience string
+// TokenStore looks up a token hash and returns the associated cluster ID.
+// Implemented by the server's SQLite store.
+type TokenStore interface {
+	LookupToken(ctx context.Context, tokenHash string) (clusterID string, err error)
 }
 
-// Validator validates Kubernetes ServiceAccount JWTs from agents.
-// Each cluster has its own OIDC issuer so we maintain a verifier per cluster.
-type Validator struct {
-	clusters map[string]*oidc.IDTokenVerifier // clusterID → verifier
-	log      *zap.Logger
-}
-
-// KubernetesClaims are the standard claims in a K8s SA token
-type KubernetesClaims struct {
-	Kubernetes struct {
-		Namespace      string `json:"namespace"`
-		ServiceAccount struct {
-			Name string `json:"name"`
-			UID  string `json:"uid"`
-		} `json:"serviceaccount"`
-	} `json:"kubernetes.io"`
-}
-
-// AgentIdentity is the verified identity extracted from a valid token
+// AgentIdentity is the verified identity of a connected agent.
 type AgentIdentity struct {
-	ClusterID      string
-	Namespace      string
-	ServiceAccount string
-	Subject        string
-	IssuedAt       time.Time
-	ExpiresAt      time.Time
+	ClusterID string
+	TokenHash string
+	VerifiedAt time.Time
 }
 
-// NewValidator creates a Validator for the given clusters.
-// Call this once at server startup with all registered clusters.
-func NewValidator(ctx context.Context, clusters map[string]ClusterConfig, log *zap.Logger) (*Validator, error) {
-	v := &Validator{
-		clusters: make(map[string]*oidc.IDTokenVerifier),
-		log:      log,
-	}
-
-	for clusterID, cfg := range clusters {
-		audience := cfg.Audience
-		if audience == "" {
-			audience = "https://kubernetes.default.svc.cluster.local"
-		}
-
-		provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
-		if err != nil {
-			return nil, fmt.Errorf("creating OIDC provider for cluster %s (%s): %w",
-				clusterID, cfg.IssuerURL, err)
-		}
-
-		verifier := provider.Verifier(&oidc.Config{
-			ClientID: audience,
-		})
-
-		v.clusters[clusterID] = verifier
-		log.Info("registered OIDC verifier",
-			zap.String("cluster", clusterID),
-			zap.String("issuer", cfg.IssuerURL))
-	}
-
-	return v, nil
+// Validator validates agent bearer tokens using a token store.
+type Validator struct {
+	store TokenStore
+	log   *zap.Logger
 }
 
-// Verify validates a raw JWT and returns the agent's identity.
-// The clusterID claim is extracted from the token subject to select
-// the correct verifier.
-func (v *Validator) Verify(ctx context.Context, clusterID, rawToken string) (*AgentIdentity, error) {
-	verifier, ok := v.clusters[clusterID]
-	if !ok {
-		return nil, fmt.Errorf("unknown cluster: %s", clusterID)
-	}
+// NewValidator creates a Validator backed by the given store.
+func NewValidator(store TokenStore, log *zap.Logger) *Validator {
+	return &Validator{store: store, log: log}
+}
 
-	idToken, err := verifier.Verify(ctx, rawToken)
+// GenerateToken returns a new random agent token and its SHA-256 hash.
+// Store only the hash; give the token to the cluster admin once — it cannot
+// be recovered from the stored hash.
+func GenerateToken() (token, hash string, err error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", "", fmt.Errorf("generating token: %w", err)
+	}
+	token = "grumble_" + base64.RawURLEncoding.EncodeToString(b)
+	hash = HashToken(token)
+	return token, hash, nil
+}
+
+// HashToken returns the hex-encoded SHA-256 of a token.
+// Tokens are 256 bits of entropy so no salt is needed.
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// Verify validates a raw bearer token and returns the agent's identity.
+func (v *Validator) Verify(ctx context.Context, rawToken string) (*AgentIdentity, error) {
+	hash := HashToken(rawToken)
+	clusterID, err := v.store.LookupToken(ctx, hash)
 	if err != nil {
-		return nil, fmt.Errorf("token verification failed: %w", err)
+		return nil, fmt.Errorf("invalid token")
 	}
-
-	var claims KubernetesClaims
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("extracting claims: %w", err)
-	}
-
 	return &AgentIdentity{
-		ClusterID:      clusterID,
-		Namespace:      claims.Kubernetes.Namespace,
-		ServiceAccount: claims.Kubernetes.ServiceAccount.Name,
-		Subject:        idToken.Subject,
-		IssuedAt:       idToken.IssuedAt,
-		ExpiresAt:      idToken.Expiry,
+		ClusterID:  clusterID,
+		TokenHash:  hash,
+		VerifiedAt: time.Now(),
 	}, nil
 }
 
-// UnaryInterceptor returns a gRPC server interceptor that validates
-// the bearer token on every unary RPC call.
+// UnaryInterceptor returns a gRPC server interceptor that validates the bearer
+// token on every unary RPC call.
 func (v *Validator) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if _, err := v.authenticate(ctx); err != nil {
@@ -125,18 +84,15 @@ func (v *Validator) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// StreamInterceptor returns a gRPC server interceptor that validates
-// the bearer token on every streaming RPC (used by Connect).
+// StreamInterceptor returns a gRPC server interceptor that validates the bearer
+// token on every streaming RPC.
 func (v *Validator) StreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		identity, err := v.authenticate(ss.Context())
 		if err != nil {
 			return err
 		}
-		v.log.Info("agent authenticated",
-			zap.String("cluster", identity.ClusterID),
-			zap.String("serviceAccount", identity.ServiceAccount),
-			zap.String("namespace", identity.Namespace))
+		v.log.Info("agent authenticated", zap.String("cluster", identity.ClusterID))
 		return handler(srv, ss)
 	}
 }
@@ -146,29 +102,9 @@ func (v *Validator) authenticate(ctx context.Context) (*AgentIdentity, error) {
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "missing token: %v", err)
 	}
-
-	// Extract clusterID from metadata (sent alongside the token)
-	clusterID, err := clusterIDFromContext(ctx)
+	identity, err := v.Verify(ctx, rawToken)
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "missing cluster-id: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token")
 	}
-
-	identity, err := v.Verify(ctx, clusterID, rawToken)
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-	}
-
 	return identity, nil
-}
-
-func clusterIDFromContext(ctx context.Context) (string, error) {
-	md, ok := grpcMetadataFromContext(ctx)
-	if !ok {
-		return "", fmt.Errorf("no metadata")
-	}
-	vals := md["x-grumble-cluster-id"]
-	if len(vals) == 0 {
-		return "", fmt.Errorf("x-grumble-cluster-id header missing")
-	}
-	return vals[0], nil
 }
