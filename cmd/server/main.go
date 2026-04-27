@@ -135,6 +135,8 @@ Print the token once — it cannot be recovered. Store it in a Kubernetes Secret
 
 	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
 	cmd.Flags().StringVar(&clusterID, "name", "", "Cluster name (required)")
-	cmd.MarkFlagRequired("name")
+	if err := cmd.MarkFlagRequired("name"); err != nil {
+		panic(err)
+	}
 	return cmd
 }
