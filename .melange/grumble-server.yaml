@@ -1,0 +1,46 @@
+package:
+  name: grumble-server
+  version: 0.0.0
+  epoch: 0
+  description: Grumble server binary (CGO build with sqlite)
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    runtime:
+      - ca-certificates-bundle
+      - sqlite-libs
+
+environment:
+  contents:
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    repositories:
+      - https://packages.wolfi.dev/os
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - git
+      - go
+      - sqlite-dev
+
+pipeline:
+  - name: Build grumble-server
+    runs: |
+      set -eux
+      export CGO_ENABLED=1
+      export GOOS=linux
+      export GOFLAGS="-trimpath -buildvcs=false"
+      mkdir -p "${{targets.destdir}}/usr/bin"
+      go build \
+        -ldflags="-s -w" \
+        -o "${{targets.destdir}}/usr/bin/grumble-server" \
+        ./cmd/server
+
+subpackages: []
+
+update:
+  enabled: true
+  github:
+    identifier: mental-lab/grumble
+    strip-prefix: v

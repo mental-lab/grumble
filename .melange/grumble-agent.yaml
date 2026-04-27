@@ -1,0 +1,44 @@
+package:
+  name: grumble-agent
+  version: 0.0.0
+  epoch: 0
+  description: Grumble agent binary (static Go build)
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    runtime:
+      - ca-certificates-bundle
+
+environment:
+  contents:
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    repositories:
+      - https://packages.wolfi.dev/os
+    packages:
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - git
+      - go
+
+pipeline:
+  - name: Build grumble-agent
+    runs: |
+      set -eux
+      export CGO_ENABLED=0
+      export GOOS=linux
+      export GOFLAGS="-trimpath -buildvcs=false"
+      mkdir -p "${{targets.destdir}}/usr/bin"
+      go build \
+        -ldflags="-s -w" \
+        -o "${{targets.destdir}}/usr/bin/grumble-agent" \
+        ./cmd/agent
+
+subpackages: []
+
+update:
+  enabled: true
+  github:
+    identifier: mental-lab/grumble
+    strip-prefix: v
