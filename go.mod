@@ -5,11 +5,10 @@ go 1.26.0
 require (
 	github.com/anchore/grype v0.111.1
 	github.com/anchore/syft v1.43.0
-	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/google/go-containerregistry v0.21.5
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/spf13/cobra v1.10.2
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
