@@ -76,7 +76,7 @@ jobs:
       - uses: chainguard-dev/actions/setup-melange@0cba302c40fce067ec0d39f1d91b10580d4b06b0 # main
 
       - name: Download signing key
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           name: melange-signing-key
 
@@ -130,12 +130,12 @@ jobs:
           apko version
 
       - name: Download verify key
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           name: melange-verify-key
 
       - name: Download apks for ${{ matrix.component }}
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           pattern: apk-${{ matrix.component }}-*
           path: packages/
@@ -235,7 +235,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
       - name: Download all SBOMs
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           path: sboms
           pattern: sboms-*
