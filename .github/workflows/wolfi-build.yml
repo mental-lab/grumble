@@ -27,7 +27,7 @@ jobs:
   keygen:
     runs-on: ubuntu-latest
     steps:
-      - uses: chainguard-dev/actions/setup-melange@0cba302c40fce067ec0d39f1d91b10580d4b06b0 # main
+      - uses: chainguard-dev/actions/setup-melange@916fec00fb80f3cd124a0b41eef79ee63f607c5d # main
 
       - name: Generate melange signing key
         run: melange keygen melange.rsa
@@ -73,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
 
-      - uses: chainguard-dev/actions/setup-melange@0cba302c40fce067ec0d39f1d91b10580d4b06b0 # main
+      - uses: chainguard-dev/actions/setup-melange@916fec00fb80f3cd124a0b41eef79ee63f607c5d # main
 
       - name: Download signing key
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
