@@ -7,8 +7,12 @@ agent:
   grypeDBDir: "/tmp/grype-db"
   # Maximum number of concurrent image scans
   maxConcurrentScans: 3
-  # Disable TLS and OIDC auth (local/dev only)
+  # Disable TLS and token auth (local/dev only)
   dev: false
+  # Name of a Kubernetes Secret containing the agent token at key "token".
+  # Create with: kubectl create secret generic grumble-token --from-literal=token=<token>
+  # Leave empty only when dev: true
+  tokenSecret: ""
 
 image:
   repository: ghcr.io/mental-lab/grumble-agent

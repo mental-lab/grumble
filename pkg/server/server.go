@@ -96,7 +96,7 @@ func (s *Server) Connect(stream proto.GrumbleServer_ConnectServer) error {
 				zap.String("cluster", msg.ClusterId),
 				zap.String("image", p.ScanResult.Image),
 				zap.Int("vulns", len(p.ScanResult.Vulns)))
-			if err := s.store.SaveScanResult(p.ScanResult); err != nil {
+			if err := s.store.SaveScanResult(stream.Context(), p.ScanResult); err != nil {
 				s.log.Error("failed to store scan result", zap.Error(err))
 			}
 
@@ -104,12 +104,12 @@ func (s *Server) Connect(stream proto.GrumbleServer_ConnectServer) error {
 			s.log.Debug("received pod inventory",
 				zap.String("cluster", msg.ClusterId),
 				zap.Int("pods", len(p.Inventory.Pods)))
-			if err := s.store.SaveInventory(msg.ClusterId, p.Inventory); err != nil {
+			if err := s.store.SaveInventory(stream.Context(), msg.ClusterId, p.Inventory); err != nil {
 				s.log.Error("failed to store inventory", zap.Error(err))
 			}
 
 		case *proto.AgentMessage_Heartbeat:
-			s.store.UpdateHeartbeat(msg.AgentId, p.Heartbeat.Timestamp)
+			s.store.UpdateHeartbeat(stream.Context(), msg.AgentId, p.Heartbeat.Timestamp)
 		}
 	}
 }
