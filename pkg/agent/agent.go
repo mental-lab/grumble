@@ -61,6 +61,9 @@ type Config struct {
 
 	// MaxConcurrentScans limits how many scanAndSend goroutines run at once.
 	MaxConcurrentScans int
+
+	// IgnoreNamespaces is a set of namespaces to skip for scanning and inventory.
+	IgnoreNamespaces map[string]bool
 }
 
 func New(cfg Config, watcher *Watcher, scanner *Scanner, log *zap.Logger) *Agent {
@@ -181,6 +184,9 @@ func (a *Agent) connect(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case event := <-a.watcher.Events():
+			if a.ignored(event.Pod.Namespace) {
+				continue
+			}
 			// Always report pod inventory so the server tracks what's running
 			a.sendInventory(stream, event)
 
@@ -194,6 +200,9 @@ func (a *Agent) connect(ctx context.Context) error {
 			a.log.Info("periodic re-scan triggered", zap.Duration("interval", a.cfg.ScanInterval))
 			seen := map[string]bool{}
 			for _, pod := range a.watcher.Pods() {
+				if a.ignored(pod.Namespace) {
+					continue
+				}
 				for _, c := range pod.Spec.Containers {
 					if !seen[c.Image] {
 						seen[c.Image] = true
@@ -248,6 +257,10 @@ func (a *Agent) scanAndSend(ctx context.Context, stream proto.GrumbleServer_Conn
 	}); err != nil {
 		a.log.Error("failed to send scan result", zap.Error(err))
 	}
+}
+
+func (a *Agent) ignored(namespace string) bool {
+	return len(a.cfg.IgnoreNamespaces) > 0 && a.cfg.IgnoreNamespaces[namespace]
 }
 
 func calcBackoff(attempt int) time.Duration {

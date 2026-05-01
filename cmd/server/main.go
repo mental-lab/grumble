@@ -16,6 +16,8 @@ import (
 	"github.com/mental-lab/grumble/pkg/server"
 )
 
+const defaultDBURL = "postgres://grumble:grumble@localhost:5432/grumble?sslmode=disable"
+
 func main() {
 	root := &cobra.Command{
 		Use:   "grumble-server",
@@ -32,7 +34,7 @@ func serveCmd() *cobra.Command {
 	var (
 		grpcAddr string
 		httpAddr string
-		dbPath   string
+		dbURL    string
 		tlsCert  string
 		tlsKey   string
 		devMode  bool
@@ -41,16 +43,19 @@ func serveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start the gRPC and HTTP servers",
-		// Keep bare invocation working for backwards compatibility with existing deployments.
-		Args: cobra.NoArgs,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log, _ := zap.NewProduction()
 			defer log.Sync() //nolint:errcheck
 
-			store, err := server.NewStore(dbPath)
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer cancel()
+
+			store, err := server.NewStore(ctx, dbURL)
 			if err != nil {
 				return err
 			}
+			defer store.Close()
 
 			var validator *auth.Validator
 			if devMode {
@@ -61,9 +66,6 @@ func serveCmd() *cobra.Command {
 
 			srv := server.New(store, validator, log)
 			api := server.NewAPI(store, log)
-
-			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			defer cancel()
 
 			g, ctx := errgroup.WithContext(ctx)
 
@@ -92,7 +94,7 @@ func serveCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&grpcAddr, "grpc-addr", ":9090", "gRPC listen address")
 	cmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP API listen address")
-	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
+	cmd.Flags().StringVar(&dbURL, "db-url", defaultDBURL, "PostgreSQL connection string")
 	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Server TLS certificate file")
 	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Server TLS key file")
 	cmd.Flags().BoolVar(&devMode, "dev", false, "Disable token auth for local development")
@@ -101,7 +103,7 @@ func serveCmd() *cobra.Command {
 
 func registerCmd() *cobra.Command {
 	var (
-		dbPath    string
+		dbURL     string
 		clusterID string
 	)
 
@@ -114,17 +116,18 @@ Print the token once — it cannot be recovered. Store it in a Kubernetes Secret
   kubectl create secret generic grumble-token \
     --from-literal=token=<printed-token>`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := server.NewStore(dbPath)
+			store, err := server.NewStore(context.Background(), dbURL)
 			if err != nil {
 				return err
 			}
+			defer store.Close()
 
 			token, hash, err := auth.GenerateToken()
 			if err != nil {
 				return fmt.Errorf("generating token: %w", err)
 			}
 
-			if err := store.RegisterToken(clusterID, hash); err != nil {
+			if err := store.RegisterToken(context.Background(), clusterID, hash); err != nil {
 				return fmt.Errorf("storing token: %w", err)
 			}
 
@@ -133,7 +136,7 @@ Print the token once — it cannot be recovered. Store it in a Kubernetes Secret
 		},
 	}
 
-	cmd.Flags().StringVar(&dbPath, "db", "/data/grumble.db", "SQLite database path")
+	cmd.Flags().StringVar(&dbURL, "db-url", defaultDBURL, "PostgreSQL connection string")
 	cmd.Flags().StringVar(&clusterID, "name", "", "Cluster name (required)")
 	if err := cmd.MarkFlagRequired("name"); err != nil {
 		panic(err)

@@ -33,6 +33,12 @@ spec:
             {{- if .Values.agent.dev }}
             - --dev
             {{- end }}
+            {{- range .Values.ignoreNamespaces }}
+            - --ignore-namespace={{ . }}
+            {{- end }}
+            {{- if .Values.agent.tokenSecret }}
+            - --token-path=/var/run/secrets/grumble/token
+            {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -43,6 +49,11 @@ spec:
           volumeMounts:
             - name: grype-db
               mountPath: {{ .Values.agent.grypeDBDir }}
+            {{- if .Values.agent.tokenSecret }}
+            - name: grumble-token
+              mountPath: /var/run/secrets/grumble
+              readOnly: true
+            {{- end }}
       volumes:
         - name: grype-db
           {{- if .Values.persistence.enabled }}
@@ -51,3 +62,8 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        {{- if .Values.agent.tokenSecret }}
+        - name: grumble-token
+          secret:
+            secretName: {{ .Values.agent.tokenSecret }}
+        {{- end }}

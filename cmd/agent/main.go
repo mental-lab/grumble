@@ -28,6 +28,7 @@ func main() {
 		dev                bool
 		scanInterval       time.Duration
 		maxConcurrentScans int
+		ignoreNamespaces   []string
 	)
 
 	cmd := &cobra.Command{
@@ -55,6 +56,11 @@ func main() {
 
 			watcher := agent.NewWatcher(client, log)
 
+			ignore := make(map[string]bool, len(ignoreNamespaces))
+			for _, ns := range ignoreNamespaces {
+				ignore[ns] = true
+			}
+
 			a := agent.New(agent.Config{
 				AgentID:            agentID,
 				ClusterID:          clusterID,
@@ -65,6 +71,7 @@ func main() {
 				Dev:                dev,
 				ScanInterval:       scanInterval,
 				MaxConcurrentScans: maxConcurrentScans,
+				IgnoreNamespaces:   ignore,
 			}, watcher, scanner, log)
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -88,6 +95,7 @@ func main() {
 	cmd.Flags().BoolVar(&dev, "dev", false, "Disable TLS and token auth (local testing only)")
 	cmd.Flags().DurationVar(&scanInterval, "scan-interval", 24*time.Hour, "How often to re-scan all running images (0 to disable)")
 	cmd.Flags().IntVar(&maxConcurrentScans, "max-concurrent-scans", 3, "Maximum number of concurrent image scans")
+	cmd.Flags().StringArrayVar(&ignoreNamespaces, "ignore-namespace", nil, "Namespace to skip (repeatable: --ignore-namespace kube-system --ignore-namespace kube-public)")
 	cmd.MarkFlagRequired("cluster-id")
 
 	if err := cmd.Execute(); err != nil {
