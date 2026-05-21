@@ -3,8 +3,8 @@ module github.com/mental-lab/grumble
 go 1.26.0
 
 require (
-	github.com/anchore/grype v0.111.1
-	github.com/anchore/syft v1.43.0
+	github.com/anchore/grype v0.112.0
+	github.com/anchore/syft v1.44.0
 	github.com/google/go-containerregistry v0.21.5
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/spf13/cobra v1.10.2
