@@ -6,7 +6,7 @@ require (
 	github.com/anchore/grype v0.111.1
 	github.com/anchore/syft v1.43.0
 	github.com/google/go-containerregistry v0.21.5
-	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0
 	golang.org/x/sync v0.20.0
